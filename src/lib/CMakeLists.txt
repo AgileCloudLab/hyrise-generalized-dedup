@@ -426,6 +426,18 @@ set(
     storage/base_segment_accessor.hpp
     storage/base_segment_encoder.hpp
     storage/base_value_segment.hpp
+    storage/base_gd_segment.hpp
+    
+    storage/gd_segment/permute.hpp
+    storage/gd_segment/gdd_lsb.hpp
+    storage/gd_segment/helpers.hpp
+
+    storage/gd_segment_v1.hpp
+    storage/gd_segment_v1.cpp
+    storage/gd_segment/gd_segment_v1_devbits.hpp
+    storage/gd_segment/gd_segment_v1_devbits.cpp
+    storage/gd_segment/v1_encoder.hpp
+    
     storage/abstract_table_constraint.cpp
     storage/abstract_table_constraint.hpp
     storage/table_key_constraint.cpp
