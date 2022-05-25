@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "storage/dictionary_segment.hpp"
+#include "storage/gd_segment_v1.hpp"
 #include "storage/fixed_string_dictionary_segment.hpp"
 #include "storage/frame_of_reference_segment.hpp"
 #include "storage/lz4_segment.hpp"
@@ -190,6 +191,11 @@ class BinaryWriter {
    */
   template <typename T>
   static void _write_segment(const FrameOfReferenceSegment<T>& frame_of_reference_segment, bool column_is_nullable,
+                             std::ofstream& ofstream);
+
+  // TODO implement
+  template <typename T>
+  static void _write_segment(const GdSegmentV1<T>& gd_segment_v1, bool column_is_nullable,
                              std::ofstream& ofstream);
 
   /**

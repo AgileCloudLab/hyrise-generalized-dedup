@@ -25,7 +25,7 @@ class DictionarySegment : public BaseDictionarySegment {
   // returns an underlying dictionary
   std::shared_ptr<const pmr_vector<T>> dictionary() const;
 
-  /**
+  /** 
    * @defgroup AbstractSegment interface
    * @{
    */

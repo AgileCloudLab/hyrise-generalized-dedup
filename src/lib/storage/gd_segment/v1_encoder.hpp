@@ -1,14 +1,22 @@
 #pragma once
 
 #include "storage/base_segment_encoder.hpp"
-#include "types.hpp"
-#include <memory>
-#include "gd_segment_v1_devbits.hpp" 
 #include "storage/gd_segment_v1.hpp" 
+//#include "gd_segment_v1_devbits.hpp" 
+#include "storage/segment_iterables/any_segment_iterable.hpp"
+#include "types.hpp"
+#include "utils/enum_constant.hpp"
+
+#include "storage/value_segment.hpp"
+#include "storage/vector_compression/base_compressed_vector.hpp"
+#include "storage/vector_compression/vector_compression.hpp"
+
+#include <memory>
+#include <iostream>
 
 using namespace opossum;
 
-class GdV1Encoder : public SegmentEncoder<GdV1Encoder>{
+class GdV1Encoder : public SegmentEncoder<GdV1Encoder> {
 
 public:
 
@@ -20,7 +28,6 @@ public:
                                                      const PolymorphicAllocator<T>& allocator)
     {
         // Extract the values from the segment iterable
-
         std::vector<T> values;
         segment_iterable.with_iterators([&](auto segment_it, auto segment_end) {
             values.reserve(std::distance(segment_it, segment_end));
@@ -43,8 +50,7 @@ public:
         
 
         // Create the segment
-        const auto segment_ptr = gdsegment::make_gd_segment_v1(values, 1U);
-        segment_ptr->print();
-        return std::make_shared<GdSegmentV1<T>>(segment_ptr);
+        unsigned rand_dev_bits = (unsigned) (rand() % (30-1 + 1) + 1);
+        return std::make_shared<GdSegmentV1<T>>(values, rand_dev_bits);
     }
 };

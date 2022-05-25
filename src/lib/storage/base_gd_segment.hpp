@@ -4,6 +4,7 @@
 #include <string>
 
 #include "abstract_encoded_segment.hpp"
+#include "compact_vector.hpp"
 
 
 namespace opossum {
@@ -49,6 +50,6 @@ class BaseGdSegment : public AbstractEncodedSegment {
   virtual ValueID null_value_id() const = 0;
 
   virtual size_t bases_num() const = 0;
-  
+
 };
 }  // namespace opossum

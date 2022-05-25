@@ -6,6 +6,7 @@
 
 #include "sorted_segment_search.hpp"
 #include "storage/base_dictionary_segment.hpp"
+#include "storage/base_gd_segment.hpp"
 #include "storage/create_iterable_from_segment.hpp"
 #include "storage/resolve_encoded_segment_type.hpp"
 #include "storage/segment_iterables/create_iterable_from_attribute_vector.hpp"
@@ -47,6 +48,14 @@ void ColumnVsValueTableScanImpl::_scan_non_reference_segment(
 
   if (const auto* dictionary_segment = dynamic_cast<const BaseDictionarySegment*>(&segment)) {
     _scan_dictionary_segment(*dictionary_segment, chunk_id, matches, position_filter);
+  }
+  else if (const auto* gd_segment_v1 = dynamic_cast<const BaseGdSegment*>(&segment)) {
+    gd_segment_v1->segment_vs_value_table_scan(
+        predicate_condition, 
+        value, 
+        chunk_id, 
+        matches,
+        position_filter);
   } else {
     _scan_generic_segment(segment, chunk_id, matches, position_filter);
   }

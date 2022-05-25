@@ -8,6 +8,7 @@
 #include "resolve_type.hpp"
 #include "storage/create_iterable_from_segment.hpp"
 #include "storage/dictionary_segment.hpp"
+#include "storage/gd_segment_v1.hpp"
 #include "storage/fixed_string_dictionary_segment.hpp"
 #include "storage/frame_of_reference_segment.hpp"
 #include "storage/reference_segment.hpp"
@@ -69,6 +70,12 @@ class ReferenceSegmentIterable : public SegmentIterable<ReferenceSegmentIterable
 #ifdef HYRISE_ERASE_FRAMEOFREFERENCE
           if constexpr (std::is_same_v<T, int32_t>) {
             if constexpr (std::is_same_v<SegmentType, FrameOfReferenceSegment<T>>) return;
+          }
+#endif
+
+#ifdef HYRISE_ERASE_GDV1
+          if constexpr (std::is_same_v<T, int32_t>) {
+            if constexpr (std::is_same_v<SegmentType, GdSegmentV1<T>>) return;
           }
 #endif
 

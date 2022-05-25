@@ -20,6 +20,7 @@
 #include "statistics/table_statistics.hpp"
 #include "storage/chunk_encoder.hpp"
 #include "storage/dictionary_segment.hpp"
+#include "storage/gd_segment_v1.hpp"
 #include "storage/segment_encoding_utils.hpp"
 #include "storage/table.hpp"
 #include "testing_assert.hpp"
@@ -101,5 +102,7 @@ const SegmentEncodingSpec all_segment_encoding_specs[]{
     SegmentEncodingSpec{EncodingType::FixedStringDictionary, VectorCompressionType::BitPacking},
     SegmentEncodingSpec{EncodingType::FrameOfReference},
     SegmentEncodingSpec{EncodingType::LZ4},
-    SegmentEncodingSpec{EncodingType::RunLength}};
+    SegmentEncodingSpec{EncodingType::RunLength}
+};
+    //SegmentEncodingSpec{EncodingType::GdV1}
 }  // namespace opossum

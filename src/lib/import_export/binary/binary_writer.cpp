@@ -278,6 +278,14 @@ void BinaryWriter::_write_segment(const FrameOfReferenceSegment<int32_t>& frame_
                             frame_of_reference_segment.offset_values());
 }
 
+
+template <>
+void BinaryWriter::_write_segment(const GdSegmentV1<int32_t>& gd_segment_v1,
+                                  bool column_is_nullable, std::ofstream& ofstream){
+  // TODO
+}
+
+
 template <typename T>
 void BinaryWriter::_write_segment(const LZ4Segment<T>& lz4_segment, bool column_is_nullable, std::ofstream& ofstream) {
   export_value(ofstream, EncodingType::LZ4);

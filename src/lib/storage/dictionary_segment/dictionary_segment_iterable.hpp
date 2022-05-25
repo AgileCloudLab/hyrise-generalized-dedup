@@ -12,6 +12,10 @@ namespace opossum {
 
 template <typename T, typename Dictionary>
 class DictionarySegmentIterable : public PointAccessibleSegmentIterable<DictionarySegmentIterable<T, Dictionary>> {
+ private:
+  const BaseDictionarySegment& _segment;
+  std::shared_ptr<const Dictionary> _dictionary;
+ 
  public:
   using ValueType = T;
 
@@ -26,14 +30,14 @@ class DictionarySegmentIterable : public PointAccessibleSegmentIterable<Dictiona
     _segment.access_counter[SegmentAccessCounter::AccessType::Sequential] += _segment.size();
     _segment.access_counter[SegmentAccessCounter::AccessType::Dictionary] += _segment.size();
 
-    resolve_compressed_vector_type(*_segment.attribute_vector(), [&](const auto& vector) {
-      using CompressedVectorIterator = decltype(vector.cbegin());
+    resolve_compressed_vector_type(*_segment.attribute_vector(), [&](const auto& attribute_vector) {
+      using CompressedVectorIterator = decltype(attribute_vector.cbegin());
       using DictionaryIteratorType = decltype(_dictionary->cbegin());
 
       auto begin = Iterator<CompressedVectorIterator, DictionaryIteratorType>{
-          _dictionary->cbegin(), _segment.null_value_id(), vector.cbegin(), ChunkOffset{0u}};
+          _dictionary->cbegin(), _segment.null_value_id(), attribute_vector.cbegin(), ChunkOffset{0u}};
       auto end = Iterator<CompressedVectorIterator, DictionaryIteratorType>{
-          _dictionary->cbegin(), _segment.null_value_id(), vector.cend(), static_cast<ChunkOffset>(_segment.size())};
+          _dictionary->cbegin(), _segment.null_value_id(), attribute_vector.cend(), static_cast<ChunkOffset>(_segment.size())};
 
       functor(begin, end);
     });
@@ -44,16 +48,16 @@ class DictionarySegmentIterable : public PointAccessibleSegmentIterable<Dictiona
     _segment.access_counter[SegmentAccessCounter::access_type(*position_filter)] += position_filter->size();
     _segment.access_counter[SegmentAccessCounter::AccessType::Dictionary] += position_filter->size();
 
-    resolve_compressed_vector_type(*_segment.attribute_vector(), [&](const auto& vector) {
-      using Decompressor = std::decay_t<decltype(vector.create_decompressor())>;
+    resolve_compressed_vector_type(*_segment.attribute_vector(), [&](const auto& attribute_vector) {
+      using Decompressor = std::decay_t<decltype(attribute_vector.create_decompressor())>;
       using DictionaryIteratorType = decltype(_dictionary->cbegin());
 
       using PosListIteratorType = decltype(position_filter->cbegin());
       auto begin = PointAccessIterator<Decompressor, DictionaryIteratorType, PosListIteratorType>{
-          _dictionary->cbegin(), _segment.null_value_id(), vector.create_decompressor(), position_filter->cbegin(),
+          _dictionary->cbegin(), _segment.null_value_id(), attribute_vector.create_decompressor(), position_filter->cbegin(),
           position_filter->cbegin()};
       auto end = PointAccessIterator<Decompressor, DictionaryIteratorType, PosListIteratorType>{
-          _dictionary->cbegin(), _segment.null_value_id(), vector.create_decompressor(), position_filter->cbegin(),
+          _dictionary->cbegin(), _segment.null_value_id(), attribute_vector.create_decompressor(), position_filter->cbegin(),
           position_filter->cend()};
       functor(begin, end);
     });
@@ -152,9 +156,7 @@ class DictionarySegmentIterable : public PointAccessibleSegmentIterable<Dictiona
     mutable Decompressor _attribute_decompressor;
   };
 
- private:
-  const BaseDictionarySegment& _segment;
-  std::shared_ptr<const Dictionary> _dictionary;
+ 
 };
 
 template <typename T>
