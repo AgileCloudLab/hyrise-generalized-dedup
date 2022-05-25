@@ -28,21 +28,21 @@ GdSegmentV1<T, U>::GdSegmentV1(const std::vector<T>& data, const uint8_t dev_bit
     // Make compact vectors
     const auto bases_bits = (std_bases.size() == 1) ? 1 : num_bits(std_bases.size());
     auto bases_cv = compact::vector<T>(bases_bits, std_bases.size());
-    for(auto i=0 ; i<std_bases.size() ; ++i){
+    for(auto i=0U ; i<std_bases.size() ; ++i){
         bases_cv[i] = std_bases[i];
     }
     bases_ptr = std::make_shared<decltype(bases_cv)>(bases_cv);
 
     const auto devs_bits = (std_deviations.size() == 1) ? 1 : num_bits(std_deviations.size());
     auto deviations_cv = compact::vector<unsigned>(devs_bits, std_deviations.size());
-    for(auto i=0 ; i<std_deviations.size() ; ++i){
+    for(auto i=0U ; i<std_deviations.size() ; ++i){
         deviations_cv[i] = std_deviations[i];
     }
     deviations_ptr = std::make_shared<decltype(deviations_cv)>(deviations_cv);
 
     const auto recon_list_bits = (std_bases.size() == 1) ? 1 : num_bits(std_bases.size());
     auto recon_list_cv = compact::vector<size_t>(recon_list_bits, std_base_indexes.size());
-    for(auto i=0 ; i<std_base_indexes.size() ; ++i){
+    for(auto i=0U ; i<std_base_indexes.size() ; ++i){
         recon_list_cv[i] = std_base_indexes[i];
     }
     reconstruction_list = make_shared<decltype(recon_list_cv)>(recon_list_cv);
