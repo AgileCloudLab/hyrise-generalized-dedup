@@ -34,16 +34,18 @@ private:
 
 public:
 
-    GdSegmentV1(const std::vector<T>& data, const uint8_t dev_bits=8U);
+    GdSegmentV1(const std::vector<T>& data, const uint8_t dev_bits);
 
     EncodingType encoding_type() const { return EncodingType::GdV1; };
-
     std::shared_ptr<const compact::vector<T>> get_bases() const { return bases_ptr; };
     std::shared_ptr<const compact::vector<unsigned>> get_deviations() const { return deviations_ptr; };
     std::shared_ptr<const compact::vector<size_t>> get_reconstruction_list() const { return reconstruction_list; };
     unsigned get_dev_bits() const { return dev_bits; }
+    size_t rows_num() const { return reconstruction_list->size(); };
+    
+    float get_compression_gain() const;
+    void print() const;
 
-    void print() const {};
 
     // TableScan
     void segment_vs_value_table_scan(

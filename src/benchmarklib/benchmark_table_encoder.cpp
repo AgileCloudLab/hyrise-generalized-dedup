@@ -58,6 +58,8 @@ namespace opossum {
 
 bool BenchmarkTableEncoder::encode(const std::string& table_name, const std::shared_ptr<Table>& table,
                                    const EncodingConfig& encoding_config) {
+  
+  std::cout << " ENCODING TABLE " << table_name << std::endl;
   /**
    * 1. Build the ChunkEncodingSpec, i.e. the Encoding to be used
    */
@@ -70,6 +72,8 @@ bool BenchmarkTableEncoder::encode(const std::string& table_name, const std::sha
   ChunkEncodingSpec chunk_encoding_spec;
 
   for (ColumnID column_id{0}; column_id < table->column_count(); ++column_id) {
+
+
     // Check if a column specific encoding was specified
     if (table_has_custom_encoding) {
       const auto& column_name = table->column_name(column_id);
@@ -94,6 +98,7 @@ bool BenchmarkTableEncoder::encode(const std::string& table_name, const std::sha
     // No column-specific or type-specific encoding was specified.
     // Use default if it is compatible with the column type or leave column Unencoded if it is not.
     if (encoding_supports_data_type(encoding_config.default_encoding_spec.encoding_type, column_data_type)) {
+      std::cout << " - Column '" + table_name + "." + table->column_name(column_id) + "' will be encoded as " << encoding_config.default_encoding_spec.encoding_type << "\n";
       chunk_encoding_spec.push_back(encoding_config.default_encoding_spec);
     } else {
       std::cout << " - Column '" << table_name << "." << table->column_name(column_id) << "' of type ";
@@ -110,10 +115,16 @@ bool BenchmarkTableEncoder::encode(const std::string& table_name, const std::sha
   auto encoding_performed = std::atomic_bool{false};
   const auto column_data_types = table->column_data_types();
 
-  auto jobs = std::vector<std::shared_ptr<AbstractTask>>{};
-  jobs.reserve(table->chunk_count());
+  //auto jobs = std::vector<std::shared_ptr<AbstractTask>>{};
+  //jobs.reserve(table->chunk_count());
 
   for (auto chunk_id = ChunkID{0}; chunk_id < table->chunk_count(); ++chunk_id) {
+    std::cout << " Encoding chunk " + std::to_string(chunk_id+1) + " / " + std::to_string(table->chunk_count()) << std::endl;
+    const auto chunk = table->get_chunk(ChunkID{chunk_id});
+    ChunkEncoder::encode_chunk(chunk, column_data_types, chunk_encoding_spec, table_name, table->column_names(), chunk_id);
+    encoding_performed = true;
+    /* 
+    //Encode the chunks in parallel
     const auto encode = [&, chunk_id]() {
       const auto chunk = table->get_chunk(ChunkID{chunk_id});
       Assert(chunk, "Physically deleted chunk should not reach this point, see get_chunk / #1686.");
@@ -123,8 +134,9 @@ bool BenchmarkTableEncoder::encode(const std::string& table_name, const std::sha
       }
     };
     jobs.emplace_back(std::make_shared<JobTask>(encode));
+    */
   }
-  Hyrise::get().scheduler()->schedule_and_wait_for_tasks(jobs);
+  //Hyrise::get().scheduler()->schedule_and_wait_for_tasks(jobs);
 
   generate_chunk_pruning_statistics(table);
 

@@ -2,19 +2,15 @@
 
 #include "storage/base_segment_encoder.hpp"
 #include "storage/gd_segment_v1.hpp" 
-//#include "gd_segment_v1_devbits.hpp" 
-#include "storage/segment_iterables/any_segment_iterable.hpp"
 #include "types.hpp"
 #include "utils/enum_constant.hpp"
-
-#include "storage/value_segment.hpp"
-#include "storage/vector_compression/base_compressed_vector.hpp"
-#include "storage/vector_compression/vector_compression.hpp"
+#include "performance_test.hpp"
 
 #include <memory>
 #include <iostream>
 
 using namespace opossum;
+using namespace gdsegment;
 
 class GdV1Encoder : public SegmentEncoder<GdV1Encoder> {
 
@@ -25,7 +21,9 @@ public:
     
     template <typename T>
     std::shared_ptr<AbstractEncodedSegment> _on_encode(const AnySegmentIterable<T> segment_iterable,
-                                                     const PolymorphicAllocator<T>& allocator)
+                                                     const PolymorphicAllocator<T>& allocator,
+                                                     const std::string& table_col_name, 
+                                                     const int chunk_index)
     {
         // Extract the values from the segment iterable
         std::vector<T> values;
@@ -45,12 +43,15 @@ public:
 
         /**
          * @TODO test GdSegmentV1 with all deviation sizes, 
-         * @TODO decide which one is the best and return a shared pointer to it
          */  
+        const auto perf_results = perf_test::test_v1<T>(values);
         
+        // @TODO decide which one is the best and return a shared pointer to it
 
         // Create the segment
         unsigned rand_dev_bits = (unsigned) (rand() % (30-1 + 1) + 1);
+        rand_dev_bits = 10;
+        std::cout << "Creating GdSegmentV1 for "<< table_col_name << " chunk " << chunk_index << ", using " << rand_dev_bits << " dev bits\n";
         return std::make_shared<GdSegmentV1<T>>(values, rand_dev_bits);
     }
 };

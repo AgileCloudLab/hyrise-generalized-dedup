@@ -27,6 +27,7 @@ set(
     storage/gd_segment_v1.cpp
     #storage/gd_segment/gd_segment_v1_devbits.hpp
     #storage/gd_segment/gd_segment_v1_devbits.cpp
+    storage/gd_segment/performance_test.hpp
     storage/gd_segment/v1_encoder.hpp
     storage/gd_segment/v1_iterable.hpp
     storage/abstract_table_constraint.cpp

@@ -39,7 +39,8 @@ class BaseSegmentEncoder {
    * @return encoded segment if data type is supported else throws exception
    */
   virtual std::shared_ptr<AbstractEncodedSegment> encode(const std::shared_ptr<const AbstractSegment>& segment,
-                                                         DataType data_type) = 0;
+                                                         DataType data_type, const std::string& table_col_name="", 
+                                                         const int chunk_index=-1) = 0;
 
   virtual std::unique_ptr<BaseSegmentEncoder> create_new() const = 0;
 
@@ -74,7 +75,7 @@ class SegmentEncoder : public BaseSegmentEncoder {
 
   // Resolves the data type and calls the appropriate instantiation of encode().
   std::shared_ptr<AbstractEncodedSegment> encode(const std::shared_ptr<const AbstractSegment>& segment,
-                                                 DataType data_type) final {
+                                                 DataType data_type, const std::string& table_col_name="", const int chunk_idx=-1) final {
     auto encoded_segment = std::shared_ptr<AbstractEncodedSegment>{};
     resolve_data_type(data_type, [&](auto data_type_c) {
       const auto data_type_supported = this->supports(data_type_c);
@@ -84,7 +85,7 @@ class SegmentEncoder : public BaseSegmentEncoder {
          * The templated method encode() where the actual encoding happens
          * is only instantiated for data types supported by the encoding type.
          */
-        encoded_segment = this->encode(segment, data_type_c);
+        encoded_segment = this->encode(segment, data_type_c, table_col_name, chunk_idx);
       } else {
         Fail("Passed data type not supported by encoding.");
       }
@@ -132,12 +133,13 @@ class SegmentEncoder : public BaseSegmentEncoder {
    */
   template <typename ColumnDataType>
   std::shared_ptr<AbstractEncodedSegment> encode(const std::shared_ptr<const AbstractSegment>& abstract_segment,
-                                                 hana::basic_type<ColumnDataType> data_type_c) {
+                                                 hana::basic_type<ColumnDataType> data_type_c, 
+                                                 const std::string& table_col_name="", const int chunk_idx=-1) {
     static_assert(decltype(supports(data_type_c))::value);
     const auto iterable = create_any_segment_iterable<ColumnDataType>(*abstract_segment);
 
     // For now, we allocate without a specific memory source.
-    return _self()._on_encode(iterable, PolymorphicAllocator<ColumnDataType>{});
+    return _self()._on_encode(iterable, PolymorphicAllocator<ColumnDataType>{}, table_col_name, chunk_idx);
   }
   /**@}*/
 

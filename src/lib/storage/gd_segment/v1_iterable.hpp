@@ -120,9 +120,10 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 
 		SegmentPosition<T> dereference() const {
 			const size_t base_idx = *recon_list_it;
-			const auto base = *(bases_begin_it + base_idx);
-			const auto dev = *(devs_begin_it + _chunk_offset);
-			const auto value = gdd_lsb::rt::reconstruct_value<T>(base, dev, dev_bits);
+
+			const T base = *(bases_begin_it + base_idx);
+			const unsigned dev = *(devs_begin_it + _chunk_offset);
+			const T value = gdd_lsb::rt::reconstruct_value<T>(base, dev, dev_bits);
 			
 			return SegmentPosition<T>{ value, false, _chunk_offset};
 		}
@@ -169,11 +170,13 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 		
 		SegmentPosition<T> dereference() const {
 			const auto& chunk_offsets = this->chunk_offsets();
+			
+			//std::cout << "  GdV1 PAI #"+std::to_string(chunk_offsets.offset_in_referenced_chunk)+"\n";
 
 			const size_t base_idx = *(recon_list_it + chunk_offsets.offset_in_referenced_chunk);
-			const auto base = *(bases_begin_it + base_idx);
-			const auto dev = *(devs_begin_it + chunk_offsets.offset_in_referenced_chunk);
-			const auto value = gdd_lsb::rt::reconstruct_value<T>(base, dev, dev_bits);
+			const T base = *(bases_begin_it + base_idx);
+			const unsigned dev = *(devs_begin_it + chunk_offsets.offset_in_referenced_chunk);
+			const T value = gdd_lsb::rt::reconstruct_value<T>(base, dev, dev_bits);
 
 			return SegmentPosition<T>{ value, false, chunk_offsets.offset_in_poslist};
 		}

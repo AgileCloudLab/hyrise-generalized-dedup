@@ -218,9 +218,11 @@ void AbstractTableGenerator::generate_and_store() {
                << per_table_timer.lap_formatted() << ")\n";
         std::cout << output.str() << std::flush;
       };
-      jobs.emplace_back(std::make_shared<JobTask>(encode_table));
+      Hyrise::get().scheduler()->schedule_and_wait_for_tasks({std::make_shared<JobTask>(encode_table)});
+      //jobs.emplace_back(std::make_shared<JobTask>(encode_table));
+
     }
-    Hyrise::get().scheduler()->schedule_and_wait_for_tasks(jobs);
+    //Hyrise::get().scheduler()->schedule_and_wait_for_tasks(jobs);
 
     metrics.encoding_duration = timer.lap();
     std::cout << "- Encoding tables and generating pruning statistic done ("

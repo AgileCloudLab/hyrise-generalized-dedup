@@ -5,9 +5,35 @@
 #include <bit>
 #include <iostream>
 #include <memory>
+#include <limits>
 #include <vector>
 
 namespace opossum {
+
+using namespace std;
+
+namespace helpers {
+
+    // Returns the minimum number of bits needed to represent every element
+    // in a signed int array
+    template<typename T>
+    size_t int_vec_num_bits(const std::vector<T>& data){
+        auto max_bits = 0U;
+        auto curr_bits = max_bits;
+
+        const auto base = sizeof(unsigned) * 8;
+        for(const auto& d : data) {
+            curr_bits = base - std::countl_zero((unsigned) abs(d));
+            if(curr_bits > max_bits){
+                max_bits = curr_bits;
+            }
+        }
+        // Add an extra bit for the sign
+        return max_bits + 1;
+    }
+}
+
+
 
 template <typename T, typename U>
 GdSegmentV1<T, U>::GdSegmentV1(const std::vector<T>& data, const uint8_t dev_bits) : 
@@ -21,26 +47,28 @@ GdSegmentV1<T, U>::GdSegmentV1(const std::vector<T>& data, const uint8_t dev_bit
     std::vector<size_t> std_base_indexes;
     gdd_lsb::rt::encode<T>(data, std_bases, std_deviations, std_base_indexes, dev_bits);
 
-    auto num_bits = [](const size_t& value){
-        return std::numeric_limits<decltype(value)>::digits - std::countl_zero(value);
+    auto num_bits_unsigned = [&](const size_t& value) -> size_t {
+        return std::numeric_limits<size_t>::digits - std::countl_zero(value);
     };
 
     // Make compact vectors
-    const auto bases_bits = (std_bases.size() == 1) ? 1 : num_bits(std_bases.size());
-    auto bases_cv = compact::vector<T>(bases_bits, std_bases.size());
+
+    // Bases: determine the number of bits from the values (since bases can be signed)
+    const auto bases_bits_num = helpers::int_vec_num_bits<T>(std_bases);
+    auto bases_cv = compact::vector<T>(bases_bits_num, std_bases.size());
     for(auto i=0U ; i<std_bases.size() ; ++i){
         bases_cv[i] = std_bases[i];
     }
     bases_ptr = std::make_shared<decltype(bases_cv)>(bases_cv);
 
-    const auto devs_bits = (std_deviations.size() == 1) ? 1 : num_bits(std_deviations.size());
-    auto deviations_cv = compact::vector<unsigned>(devs_bits, std_deviations.size());
+    auto deviations_cv = compact::vector<unsigned>(dev_bits, std_deviations.size());
     for(auto i=0U ; i<std_deviations.size() ; ++i){
         deviations_cv[i] = std_deviations[i];
     }
     deviations_ptr = std::make_shared<decltype(deviations_cv)>(deviations_cv);
 
-    const auto recon_list_bits = (std_bases.size() == 1) ? 1 : num_bits(std_bases.size());
+    const auto max_base_index = std_bases.size()-1;
+    const auto recon_list_bits = (max_base_index == 0) ? 1 : num_bits_unsigned(max_base_index);
     auto recon_list_cv = compact::vector<size_t>(recon_list_bits, std_base_indexes.size());
     for(auto i=0U ; i<std_base_indexes.size() ; ++i){
         recon_list_cv[i] = std_base_indexes[i];
@@ -239,6 +267,23 @@ void GdSegmentV1<T, U>::segment_vs_value_table_scan(
 }
 
 
+template <typename T, typename U>
+float GdSegmentV1<T, U>::get_compression_gain() const {
+    const float orig_data_size = sizeof(T) * rows_num();
+    const auto compressed_data = memory_usage(MemoryUsageCalculationMode::Full);
+    return 1 - (compressed_data / orig_data_size);
+}
+
+template <typename T, typename U>
+void GdSegmentV1<T, U>::print() const {
+    cout << "Idx\tBase\tDev\tVal\n";
+    for(auto i=0U ; i<rows_num() ; ++i)  {
+        const auto base_idx = reconstruction_list->at(i);
+        const auto base = bases_ptr->at(base_idx);
+        const auto dev = deviations_ptr->at(i);
+        cout << "["<<i<<"]\t" << base << "\t" << dev << "\t" << gdd_lsb::rt::reconstruct_value<T>(base, dev, dev_bits) << '\n';
+    }
+}
 
 template class GdSegmentV1<int32_t>;
 

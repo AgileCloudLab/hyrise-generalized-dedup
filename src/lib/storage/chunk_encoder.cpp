@@ -27,7 +27,9 @@ namespace opossum {
  */
 std::shared_ptr<AbstractSegment> ChunkEncoder::encode_segment(const std::shared_ptr<AbstractSegment>& segment,
                                                               const DataType data_type,
-                                                              const SegmentEncodingSpec& encoding_spec) {
+                                                              const SegmentEncodingSpec& encoding_spec,
+                                                              const std::string& table_col_name, 
+                                                              const int chunk_index) {
   Assert(!std::dynamic_pointer_cast<const ReferenceSegment>(segment), "Reference segments cannot be encoded.");
 
   std::shared_ptr<AbstractSegment> result;
@@ -79,14 +81,14 @@ std::shared_ptr<AbstractSegment> ChunkEncoder::encode_segment(const std::shared_
         encoder->set_vector_compression(*encoding_spec.vector_compression_type);
       }
 
-      result = encoder->encode(segment, data_type);
+      result = encoder->encode(segment, data_type, table_col_name, chunk_index);
     }
   });
   return result;
 }
 
 void ChunkEncoder::encode_chunk(const std::shared_ptr<Chunk>& chunk, const std::vector<DataType>& column_data_types,
-                                const ChunkEncodingSpec& chunk_encoding_spec) {
+                                const ChunkEncodingSpec& chunk_encoding_spec, const std::string& table_name, const std::vector<std::string>& column_names, const int chunk_index) {
   const auto column_count = chunk->column_count();
   Assert(column_data_types.size() == static_cast<size_t>(column_count),
          "Number of column types must match the chunk’s column count.");
@@ -94,14 +96,16 @@ void ChunkEncoder::encode_chunk(const std::shared_ptr<Chunk>& chunk, const std::
          "Number of column encoding specs must match the chunk’s column count.");
   Assert(!chunk->is_mutable(), "Only immutable chunks can be encoded.");
 
+  std::string table_col_name;
   for (auto column_id = ColumnID{0}; column_id < column_count; ++column_id) {
     const auto spec = chunk_encoding_spec[column_id];
 
     const auto data_type = column_data_types[column_id];
     const auto abstract_segment = chunk->get_segment(column_id);
 
-    const auto encoded_segment = encode_segment(abstract_segment, data_type, spec);
-    chunk->replace_segment(column_id, encoded_segment);
+    table_col_name = column_names.empty() ? "" : table_name+"."+column_names.at(column_id);
+    const auto encoded_segment = encode_segment(abstract_segment, data_type, spec, table_col_name, chunk_index);
+    chunk->replace_segment(column_id, encoded_segment );
   }
 
   generate_chunk_pruning_statistics(chunk);

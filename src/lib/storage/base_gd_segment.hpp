@@ -6,7 +6,6 @@
 #include "abstract_encoded_segment.hpp"
 #include "compact_vector.hpp"
 
-
 namespace opossum {
 
 /**
@@ -17,6 +16,8 @@ class BaseGdSegment : public AbstractEncodedSegment {
   using AbstractEncodedSegment::AbstractEncodedSegment;
 
   EncodingType encoding_type() const override = 0;
+
+  virtual unsigned get_dev_bits() const = 0;
 
   std::optional<CompressedVectorType> compressed_vector_type() const override { return std::nullopt;  }
 
@@ -50,6 +51,11 @@ class BaseGdSegment : public AbstractEncodedSegment {
   virtual ValueID null_value_id() const = 0;
 
   virtual size_t bases_num() const = 0;
+
+  virtual size_t rows_num() const = 0;
+
+  // Returns the achieved compression gain (higher is better)
+  virtual float get_compression_gain() const = 0; 
 
 };
 }  // namespace opossum
