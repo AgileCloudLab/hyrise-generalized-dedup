@@ -115,28 +115,32 @@ bool BenchmarkTableEncoder::encode(const std::string& table_name, const std::sha
   auto encoding_performed = std::atomic_bool{false};
   const auto column_data_types = table->column_data_types();
 
-  //auto jobs = std::vector<std::shared_ptr<AbstractTask>>{};
-  //jobs.reserve(table->chunk_count());
+  auto jobs = std::vector<std::shared_ptr<AbstractTask>>{};
+  jobs.reserve(table->chunk_count());
 
   for (auto chunk_id = ChunkID{0}; chunk_id < table->chunk_count(); ++chunk_id) {
-    std::cout << " Encoding chunk " + std::to_string(chunk_id+1) + " / " + std::to_string(table->chunk_count()) << std::endl;
+    
+    /* 
+    // Encode the chunk one after another
     const auto chunk = table->get_chunk(ChunkID{chunk_id});
     ChunkEncoder::encode_chunk(chunk, column_data_types, chunk_encoding_spec, table_name, table->column_names(), chunk_id);
     encoding_performed = true;
-    /* 
+    */
+
+
     //Encode the chunks in parallel
     const auto encode = [&, chunk_id]() {
+      std::cout << " Encoding "+table_name+" chunk " + std::to_string(chunk_id+1) + " / " + std::to_string(table->chunk_count()) + "\n";
       const auto chunk = table->get_chunk(ChunkID{chunk_id});
       Assert(chunk, "Physically deleted chunk should not reach this point, see get_chunk / #1686.");
       if (!is_chunk_encoding_spec_satisfied(chunk_encoding_spec, get_chunk_encoding_spec(*chunk))) {
-        ChunkEncoder::encode_chunk(chunk, column_data_types, chunk_encoding_spec);
+        ChunkEncoder::encode_chunk(chunk, column_data_types, chunk_encoding_spec, table_name, table->column_names(), chunk_id);
         encoding_performed = true;
       }
     };
     jobs.emplace_back(std::make_shared<JobTask>(encode));
-    */
   }
-  //Hyrise::get().scheduler()->schedule_and_wait_for_tasks(jobs);
+  Hyrise::get().scheduler()->schedule_and_wait_for_tasks(jobs);
 
   generate_chunk_pruning_statistics(table);
 

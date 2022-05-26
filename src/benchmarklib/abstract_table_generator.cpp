@@ -202,8 +202,10 @@ void AbstractTableGenerator::generate_and_store() {
   {
     std::cout << "- Encoding tables (if necessary) and generating pruning statistics" << std::endl;
 
+    // Encode tables in parallel
     auto jobs = std::vector<std::shared_ptr<AbstractTask>>{};
     jobs.reserve(table_info_by_name.size());
+
     for (auto& table_info_by_name_pair : table_info_by_name) {
       const auto& table_name = table_info_by_name_pair.first;
       auto& table_info = table_info_by_name_pair.second;
@@ -218,11 +220,15 @@ void AbstractTableGenerator::generate_and_store() {
                << per_table_timer.lap_formatted() << ")\n";
         std::cout << output.str() << std::flush;
       };
-      Hyrise::get().scheduler()->schedule_and_wait_for_tasks({std::make_shared<JobTask>(encode_table)});
-      //jobs.emplace_back(std::make_shared<JobTask>(encode_table));
-
+      // Encode the tables one by one
+      //Hyrise::get().scheduler()->schedule_and_wait_for_tasks({std::make_shared<JobTask>(encode_table)});
+      
+      // Add an encode job to the parallel jobs 
+      jobs.emplace_back(std::make_shared<JobTask>(encode_table));
     }
-    //Hyrise::get().scheduler()->schedule_and_wait_for_tasks(jobs);
+    if(!jobs.empty()){
+      Hyrise::get().scheduler()->schedule_and_wait_for_tasks(jobs);
+    }
 
     metrics.encoding_duration = timer.lap();
     std::cout << "- Encoding tables and generating pruning statistic done ("
