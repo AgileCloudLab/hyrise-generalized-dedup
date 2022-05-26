@@ -6,6 +6,7 @@
 #include "utils/enum_constant.hpp"
 #include "performance_test.hpp"
 #include "config_parser.hpp"
+#include "result_writer.hpp"
 
 #include <memory>
 #include <algorithm>
@@ -57,8 +58,10 @@ public:
 
         const auto max_bits = config.max_dev_bits == 0 ? (sizeof(T)*8 - 2) : config.max_dev_bits;
         // Measure performance
-        cout << "GdSegmentV1 performance test for " << table_col_name << " chunk #" << chunk_index << ": " << values.size() << " rows" << endl;
+        //cout << "GdSegmentV1 performance test for " << table_col_name << " chunk #" << chunk_index << ": " << values.size() << " rows" << endl;
+        
         // TODO try to load results from a file
+
         const auto perf_results = perf_test::test_v1<T>(
             values, 
             config.min_dev_bits, max_bits,
@@ -69,13 +72,25 @@ public:
             config.weight_sequential_access > 0.0, // do not measure seq access if its weight is zero
             config.weight_tablescan > 0.0 // do not measure tablescan if its weight is zero
         );
-        // TODO store results as a file
+        
+        { // Store results as a file
+            const string filename = "gd_segment_results.json";
+            string data;
+            for(const auto& results_per_devbits : perf_results){
+                data += "{\"name\":\""+table_col_name+"\", \"chunk_idx\": "+std::to_string(chunk_index)+", \"rows\":"+std::to_string(values.size())+", \"results\": ";
+                data += results_per_devbits.to_json_obj();
+                data += "},\n";
+            }
+            auto result_writer = GdResultWriter::getinstance(filename);
+            result_writer->write(data);
+        }
+
         
         // @TODO decide which one is the best and return a shared pointer to it
         const unsigned best_deviation_size = perf_test::evaluate_perf_results(perf_results, config);
 
         // Create the segment
-        std::cout << " Best deviation size: " << best_deviation_size << " bits\n";
+        std::cout << table_col_name + " chunk #" + std::to_string(chunk_index) + " best deviation size: " + std::to_string(best_deviation_size) + " bits\n";
         return std::make_shared<GdSegmentV1<T>>(values, best_deviation_size);
     }
 };

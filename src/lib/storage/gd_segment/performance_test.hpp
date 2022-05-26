@@ -10,6 +10,7 @@
 #include "v1_iterable.hpp"
 #include "config_parser.hpp"
 
+
 namespace gdsegment
 {
     using namespace std;
@@ -312,6 +313,17 @@ namespace gdsegment
                     cout << diff << "%\e[0m)";
                 }
                 cout << '\n';
+            }
+
+            std::string to_json_obj() const {
+                string json("{");
+                json += "\"dev_bits\":"+to_string(dev_bits)+",";
+                json += "\"compression_gain\":"+to_string(compression_gain)+",";
+                json += "\"random_access_time\":"+to_string(random_access_time)+",";
+                json += "\"table_scan_time\":"+to_string(table_scan_time)+",";
+                json += "\"table_scan_time_valuesegment\":"+to_string(table_scan_time_valuesegment)+"";
+                json += "}";
+                return json;
             }
         };
 
