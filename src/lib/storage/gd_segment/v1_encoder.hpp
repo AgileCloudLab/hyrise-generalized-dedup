@@ -5,8 +5,10 @@
 #include "types.hpp"
 #include "utils/enum_constant.hpp"
 #include "performance_test.hpp"
+#include "config_parser.hpp"
 
 #include <memory>
+#include <algorithm>
 #include <iostream>
 
 using namespace opossum;
@@ -41,17 +43,39 @@ public:
             }
         });
 
-        /**
-         * @TODO test GdSegmentV1 with all deviation sizes, 
-         */  
-        const auto perf_results = perf_test::test_v1<T>(values);
+        // Load the evaluation config
+        const auto config = config_parser::read_config("./gd_segment_prefs.txt");
+        if(config.fixed_dev_bits > 0){
+            // No need to measure anything
+            return std::make_shared<GdSegmentV1<T>>(values, config.fixed_dev_bits);
+        }
+
+        if(!config.weights_ok()){
+            config.print();
+            throw new std::runtime_error("Weights not OK");
+        }
+
+        const auto max_bits = config.max_dev_bits == 0 ? (sizeof(T)*8 - 2) : config.max_dev_bits;
+        // Measure performance
+        cout << "GdSegmentV1 performance test for " << table_col_name << " chunk #" << chunk_index << ": " << values.size() << " rows" << endl;
+        // TODO try to load results from a file
+        const auto perf_results = perf_test::test_v1<T>(
+            values, 
+            config.min_dev_bits, max_bits,
+            config.random_access_rows_fraction,
+            config.tablescan_values_fraction,
+             
+            config.weight_random_access > 0.0, // do not measure random access if its weight is zero
+            config.weight_sequential_access > 0.0, // do not measure seq access if its weight is zero
+            config.weight_tablescan > 0.0 // do not measure tablescan if its weight is zero
+        );
+        // TODO store results as a file
         
         // @TODO decide which one is the best and return a shared pointer to it
+        const unsigned best_deviation_size = perf_test::evaluate_perf_results(perf_results, config);
 
         // Create the segment
-        unsigned rand_dev_bits = (unsigned) (rand() % (30-1 + 1) + 1);
-        rand_dev_bits = 10;
-        std::cout << "Creating GdSegmentV1 for "<< table_col_name << " chunk " << chunk_index << ", using " << rand_dev_bits << " dev bits\n";
-        return std::make_shared<GdSegmentV1<T>>(values, rand_dev_bits);
+        std::cout << " Best deviation size: " << best_deviation_size << " bits\n";
+        return std::make_shared<GdSegmentV1<T>>(values, best_deviation_size);
     }
 };

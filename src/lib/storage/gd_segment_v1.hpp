@@ -155,9 +155,7 @@ public:
         // Last valid base index + 1
         return ValueID{static_cast<ValueID::base_type>(bases_ptr->size())};
     }
-
     
-
     AllTypeVariant operator[](const ChunkOffset chunk_offset) const {
         PerformanceWarning("operator[] used");
         DebugAssert(chunk_offset != INVALID_CHUNK_OFFSET, "Passed chunk offset must be valid.");
