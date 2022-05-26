@@ -7,6 +7,7 @@
 #include "performance_test.hpp"
 #include "config_parser.hpp"
 #include "result_writer.hpp"
+#include "segment_performance.hpp"
 
 #include <memory>
 #include <algorithm>
@@ -55,38 +56,54 @@ public:
             config.print();
             throw new std::runtime_error("Weights not OK");
         }
-
-        const auto max_bits = config.max_dev_bits == 0 ? (sizeof(T)*8 - 2) : config.max_dev_bits;
+        
         // Measure performance
         //cout << "GdSegmentV1 performance test for " << table_col_name << " chunk #" << chunk_index << ": " << values.size() << " rows" << endl;
         
-        // TODO try to load results from a file
-
-        const auto perf_results = perf_test::test_v1<T>(
-            values, 
-            config.min_dev_bits, max_bits,
-            config.random_access_rows_fraction,
-            config.tablescan_values_fraction,
-             
-            config.weight_random_access > 0.0, // do not measure random access if its weight is zero
-            config.weight_sequential_access > 0.0, // do not measure seq access if its weight is zero
-            config.weight_tablescan > 0.0 // do not measure tablescan if its weight is zero
-        );
+        vector<SegmentPerformance> perf_results;
+        const string perf_results_filename = "gd_segment_results.json";
+        bool json_load_successful = false;
         
-        { // Store results as a file
-            const string filename = "gd_segment_results.json";
-            string data;
-            for(const auto& results_per_devbits : perf_results){
-                data += "{\"name\":\""+table_col_name+"\", \"chunk_idx\": "+std::to_string(chunk_index)+", \"rows\":"+std::to_string(values.size())+", \"results\": ";
-                data += results_per_devbits.to_json_obj();
-                data += "},\n";
+        { // Try to load results from a file
+            GdResultReader results_reader(perf_results_filename);
+            if(results_reader.file_exists()){
+                const auto json_string = "[" + results_reader.get_contents() + "]";
+                GdResultParser parser(json_string);
+                // query the measurements for this segment (assuming the same measurements had been done)
+                perf_results = parser.get_measurements(table_col_name, chunk_index, values.size());
+                json_load_successful = !perf_results.empty();
             }
-            auto result_writer = GdResultWriter::getinstance(filename);
-            result_writer->write(data);
+
+            if(json_load_successful){
+                cout << table_col_name + " chunk #" + to_string(chunk_index) + " perf measurements loaded from JSON: "+to_string(perf_results.size())+"\n";
+            }
+            else{
+                cout << table_col_name + " chunk #" + to_string(chunk_index) + " perf measurements not found in JSON\n";
+            }
         }
 
+        if(perf_results.empty()){
+            // results were not loaded from json, run the tests
+            const auto max_bits = config.max_dev_bits == 0 ? (sizeof(T)*8 - 2) : config.max_dev_bits;
+            perf_results = perf_test::test_v1<T>(
+                values, 
+                config.min_dev_bits, max_bits,
+                config.random_access_rows_fraction,
+                config.tablescan_values_fraction,
+                
+                config.weight_random_access > 0.0, // do not measure random access if its weight is zero
+                config.weight_sequential_access > 0.0, // do not measure seq access if its weight is zero
+                config.weight_tablescan > 0.0 // do not measure tablescan if its weight is zero
+            );
+        }
         
-        // @TODO decide which one is the best and return a shared pointer to it
+        if(!json_load_successful) { 
+            // Store results to json
+            auto result_writer = GdResultWriter::getinstance(perf_results_filename);
+            result_writer->write_measurements(perf_results, table_col_name, chunk_index, values.size());
+        }
+
+        // Decide which deviation size is the best using the relative importance of attributes from the config
         const unsigned best_deviation_size = perf_test::evaluate_perf_results(perf_results, config);
 
         // Create the segment

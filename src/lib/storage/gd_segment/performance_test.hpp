@@ -9,6 +9,7 @@
 #include "storage/pos_lists/row_id_pos_list.hpp"
 #include "v1_iterable.hpp"
 #include "config_parser.hpp"
+#include "segment_performance.hpp"
 
 
 namespace gdsegment
@@ -27,11 +28,6 @@ namespace gdsegment
             return sum/(float)vec.size();
         }
 
-        // Returns how much val_2 is larger than val_1 
-        // (may be negative if val_2 is smaller)
-        int diff_percent(int val_1, int val_2) { 
-            return round(100 * ((val_1 - val_2) / (float)val_1)); 
-        };
         
         // Scale all values of a signal from their original domain to [0-1]
         template<typename T>
@@ -92,7 +88,7 @@ namespace gdsegment
         }
 
         template<typename T>
-        unsigned long test_random_access(const GdSegmentV1<T>& segment, const vector<size_t>& indexes, const vector<T>& orig_data) {
+        unsigned long test_random_access(const GdSegmentV1<T>& segment, const vector<uint32_t>& indexes, const vector<T>& orig_data) {
             auto segment_iterable = create_iterable_from_segment(segment);
             // Fill the position filter
             
@@ -260,7 +256,7 @@ namespace gdsegment
             high_resolution_clock::time_point before, after;
             vector<unsigned long> value_ts_times;
             value_ts_times.reserve(all_predicates.size() * query_values.size());
-            size_t chunk_offset;
+            uint32_t chunk_offset;
 
             for(const auto& condition : all_predicates) {
                 for(const auto& query_value : query_values) {
@@ -291,43 +287,6 @@ namespace gdsegment
     namespace perf_test
     {
 
-        // Record the speed and compression rate of a GdSegment at a specific deviation size
-        struct SegmentPerformance {
-            unsigned dev_bits;
-            float compression_gain;
-
-            unsigned long random_access_time;
-            unsigned long sequential_access_time;
-            unsigned long table_scan_time;
-            unsigned long table_scan_time_valuesegment;
-
-            void print() const {
-                cout << dev_bits << " bits\t | " << round(compression_gain*100) << "%\t | "<< random_access_time << " ns\t | " << sequential_access_time << " ns\t | " << (table_scan_time/1000) << " µs";
-
-                if(table_scan_time_valuesegment) {
-                    cout << " (VS:" ;
-                    const int diff = helpers::diff_percent(table_scan_time, table_scan_time_valuesegment);
-                    const bool is_positive = diff > 0;
-                    if(is_positive) { cout << " \e[92m+"; } 
-                    else { cout << " \e[91m"; }
-                    cout << diff << "%\e[0m)";
-                }
-                cout << '\n';
-            }
-
-            std::string to_json_obj() const {
-                string json("{");
-                json += "\"dev_bits\":"+to_string(dev_bits)+",";
-                json += "\"compression_gain\":"+to_string(compression_gain)+",";
-                json += "\"random_access_time\":"+to_string(random_access_time)+",";
-                json += "\"table_scan_time\":"+to_string(table_scan_time)+",";
-                json += "\"table_scan_time_valuesegment\":"+to_string(table_scan_time_valuesegment)+"";
-                json += "}";
-                return json;
-            }
-        };
-
-        
         template<typename T>
         vector<SegmentPerformance> test_v1(
             const vector<T>& data, 
@@ -344,7 +303,7 @@ namespace gdsegment
             vector<SegmentPerformance> results;
 
             // Generate random row indexes for all random access tests
-            const auto random_access_indexes = measure_random_access ? helpers::_generate_int_data<size_t>( max<size_t>(1, (size_t) data.size() * random_access_fraction), 0, data.size()-1) : vector<size_t>();
+            const auto random_access_indexes = measure_random_access ? helpers::_generate_int_data<uint32_t>( max<size_t>(1, (size_t) data.size() * random_access_fraction), 0, data.size()-1) : vector<uint32_t>();
 
             // Generate random query values for all TableScans
             const auto tablescan_query_values = measure_table_scan ? helpers::_generate_int_data<T>(max<size_t>(1, (size_t) data.size() * tablescan_fraction), *std::min_element(data.begin(), data.end()), *std::max_element(data.begin(), data.end())) : vector<T>();
