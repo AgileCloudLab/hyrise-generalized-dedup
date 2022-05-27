@@ -19,6 +19,8 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 	std::shared_ptr<const compact::vector<unsigned>> deviations;
 	std::shared_ptr<const compact::vector<size_t>> reconstruction_list;
 
+	//BaseGdSegment const * segment_ptr;
+
  public:
 	using ValueType = T;
 
@@ -27,7 +29,9 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 			bases{segment.get_bases()},
 			deviations{segment.get_deviations()},
 			reconstruction_list{segment.get_reconstruction_list()}
-			{ }
+			{ 
+				//segment_ptr = &segment;
+			}
 
 	template <typename Functor>
 	void _on_with_iterators(const Functor& functor) const {
@@ -42,8 +46,8 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 		};
 
 		auto end = Iterator<BasesIteratorType, DevsIteratorType, ReconListIteratorType>{
-				bases->cbegin(), deviations->cbegin(), reconstruction_list->cbegin(),
-				_segment.get_dev_bits(), static_cast<ChunkOffset>(_segment.size())
+				bases->cbegin(), deviations->cbegin(), reconstruction_list->cend(),
+				_segment.get_dev_bits(), _segment.size()
 		};
 
 		functor(begin, end);
@@ -70,7 +74,7 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 		functor(begin, end);
 	}
 
-	size_t _on_size() const { return _segment.size(); }
+	size_t _on_size() const { return static_cast<size_t>(_segment.size()); }
 
  private:
 	template<typename BasesIteratorType, typename DevsIteratorType, typename ReconListIteratorType>
@@ -114,7 +118,7 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 			recon_list_it += n;
 		}
 
-		bool equal(const Iterator& other) const { return _chunk_offset == other._chunk_offset; }
+		bool equal(const Iterator& other) const { return recon_list_it == other.recon_list_it /*_chunk_offset == other._chunk_offset;*/ }
 
 		std::ptrdiff_t distance_to(const Iterator& other) const { return other.recon_list_it - recon_list_it; }
 
