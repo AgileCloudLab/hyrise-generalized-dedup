@@ -94,7 +94,6 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 					dev_bits(dev_bits),
 					_chunk_offset{chunk_offset} 
 					{}
-		
 
 	 private:
 		friend class boost::iterator_core_access;  // grants the boost::iterator_facade access to the private interface
@@ -116,7 +115,7 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 
 		bool equal(const Iterator& other) const { return _chunk_offset == other._chunk_offset; }
 
-		std::ptrdiff_t distance_to(const Iterator& other) const { return other.recon_list_it - recon_list_it; }
+		std::ptrdiff_t distance_to(const Iterator& other) const { return other._chunk_offset - _chunk_offset; }
 
 		SegmentPosition<T> dereference() const {
 			const size_t base_idx = *recon_list_it;
