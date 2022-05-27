@@ -65,7 +65,8 @@ public:
         const auto recon_list = *reconstruction_list;
         if(position_filter) {
             // Check only the position filter
-            size_t pf_idx = 0U, rowidx, base_idx;
+            ChunkOffset pf_idx{0};
+            size_t rowidx, base_idx;
             for(const auto& pf : *position_filter){
                 rowidx = pf.chunk_offset;
                 base_idx = recon_list[rowidx];
