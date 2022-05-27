@@ -158,7 +158,7 @@ namespace gdsegment
             auto segment_iterable = create_iterable_from_segment(segment);
             
             // Position filter = entire chunk
-            //auto pos_filter_ptr = std::make_shared<EntireChunkPosList>(ChunkID{0}, ChunkOffset{segment.rows_num()});
+            //auto pos_filter_ptr = std::make_shared<EntireChunkPosList>(ChunkID{0}, ChunkOffset{segment.size()});
 
             vector<T> results;
             results.reserve(orig_data.size());
@@ -176,7 +176,7 @@ namespace gdsegment
             const auto average_time = round(total_time / (float)segment.size());
 
             // Verify
-            DebugAssert(results.size() == segment.rows_num(), "SeqAccess: Different number of results than segment size! Segment: "+std::to_string(segment.rows_num())+", results: "+std::to_string(results.size()));
+            DebugAssert(results.size() == segment.size(), "SeqAccess: Different number of results than segment size! Segment: "+std::to_string(segment.size())+", results: "+std::to_string(results.size()));
             DebugAssert(std::equal(results.begin(), results.end(), orig_data.begin()), "SeqAccess: Results different than original data");
 
             return average_time;
