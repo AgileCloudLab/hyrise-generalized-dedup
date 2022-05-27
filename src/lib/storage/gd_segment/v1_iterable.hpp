@@ -2,6 +2,7 @@
 
 #include <type_traits>
 
+#include "storage/base_gd_segment.hpp"
 #include "storage/abstract_segment.hpp"
 #include "storage/gd_segment_v1.hpp"
 
@@ -13,7 +14,7 @@ namespace opossum {
 template <typename T>
 class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Iterable<T>> {
  private:
-	const GdSegmentV1<T>& _segment;
+	const BaseGdSegment& _segment;
 	std::shared_ptr<const compact::vector<T>> bases;
 	std::shared_ptr<const compact::vector<unsigned>> deviations;
 	std::shared_ptr<const compact::vector<size_t>> reconstruction_list;
@@ -115,7 +116,7 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 
 		bool equal(const Iterator& other) const { return _chunk_offset == other._chunk_offset; }
 
-		std::ptrdiff_t distance_to(const Iterator& other) const { return other._chunk_offset - _chunk_offset; }
+		std::ptrdiff_t distance_to(const Iterator& other) const { return other.recon_list_it - recon_list_it; }
 
 		SegmentPosition<T> dereference() const {
 			const size_t base_idx = *recon_list_it;
