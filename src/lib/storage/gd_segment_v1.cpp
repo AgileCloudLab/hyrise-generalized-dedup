@@ -269,7 +269,7 @@ void GdSegmentV1<T, U>::segment_vs_value_table_scan(
 
 template <typename T, typename U>
 float GdSegmentV1<T, U>::get_compression_gain() const {
-    const float orig_data_size = sizeof(T) * rows_num();
+    const float orig_data_size = sizeof(T) * reconstruction_list->size();
     const auto compressed_data = memory_usage(MemoryUsageCalculationMode::Full);
     return 1 - (compressed_data / orig_data_size);
 }
@@ -277,7 +277,7 @@ float GdSegmentV1<T, U>::get_compression_gain() const {
 template <typename T, typename U>
 void GdSegmentV1<T, U>::print() const {
     cout << "Idx\tBase\tDev\tVal\n";
-    for(auto i=0U ; i<rows_num() ; ++i)  {
+    for(auto i=0U ; i<reconstruction_list->size() ; ++i)  {
         const auto base_idx = reconstruction_list->at(i);
         const auto base = bases_ptr->at(base_idx);
         const auto dev = deviations_ptr->at(i);

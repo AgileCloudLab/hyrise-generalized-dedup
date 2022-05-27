@@ -52,8 +52,6 @@ class BaseGdSegment : public AbstractEncodedSegment {
 
   virtual size_t bases_num() const = 0;
 
-  virtual size_t rows_num() const = 0;
-
   // Returns the achieved compression gain (higher is better)
   virtual float get_compression_gain() const = 0; 
 

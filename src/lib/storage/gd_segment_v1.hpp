@@ -41,7 +41,6 @@ public:
     std::shared_ptr<const compact::vector<unsigned>> get_deviations() const { return deviations_ptr; };
     std::shared_ptr<const compact::vector<size_t>> get_reconstruction_list() const { return reconstruction_list; };
     unsigned get_dev_bits() const { return dev_bits; }
-    size_t rows_num() const { return reconstruction_list->size(); };
     
     float get_compression_gain() const;
     void print() const;
@@ -130,7 +129,7 @@ public:
     }
 
     ChunkOffset size() const {
-        return ChunkOffset{ deviations_ptr->size() };
+        return ChunkOffset{ reconstruction_list->size() };
     }
 
     // Calculate total memory use
@@ -155,7 +154,7 @@ public:
         // Last valid base index + 1
         return ValueID{static_cast<ValueID::base_type>(bases_ptr->size())};
     }
-    
+
     AllTypeVariant operator[](const ChunkOffset chunk_offset) const {
         PerformanceWarning("operator[] used");
         DebugAssert(chunk_offset != INVALID_CHUNK_OFFSET, "Passed chunk offset must be valid.");
