@@ -130,7 +130,7 @@ public:
     }
 
     ChunkOffset size() const {
-        return ChunkOffset{ reconstruction_list->size() };
+        return static_cast<ChunkOffset>(reconstruction_list->size());
     }
 
     // Calculate total memory use
