@@ -160,10 +160,6 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 				recon_list_it{std::move(recon_it)},
 				dev_bits(dev_bits)
 			{}
-		
-		PointAccessIterator& operator=(const PointAccessIterator& other) {
-			recon_list_it = other.recon_list_it;
-		}
 
 	 private:
 		friend class boost::iterator_core_access;  // grants the boost::iterator_facade access to the private interface
