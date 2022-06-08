@@ -39,6 +39,7 @@ public:
                     const auto segment_value = segment_item.value();
                     values.push_back(segment_value);
                 } else {
+                    std::cout << "ERRROR! GdSegmentV1 does not support NULL values!" << std::endl;
                     throw new std::runtime_error("Gd Segment V1 does not support NULLs");
                 }
                 ++segment_it;
@@ -53,7 +54,9 @@ public:
         }
 
         if(!config.weights_ok()){
+            std::cout << "Gd Config weights not OK!" << std::endl;
             config.print();
+
             throw new std::runtime_error("Weights not OK");
         }
         

@@ -1,5 +1,5 @@
-#include "gd_segment_v1.hpp"
 #include "base_gd_segment.hpp"
+#include "gd_segment_v1.hpp"
 #include "gd_segment/gdd_lsb.hpp"
 
 #include <bit>
@@ -31,6 +31,7 @@ namespace helpers {
         // Add an extra bit for the sign
         return max_bits + 1;
     }
+
 }
 
 
@@ -261,7 +262,9 @@ void GdSegmentV1<T, U>::segment_vs_value_table_scan(
             return;
         }
 
-        default: throw new std::runtime_error("Unexpected predicate in GD TableScan");
+        default: 
+            std::cout << "Unexpected predicate in GD TableScan: " << condition << std::endl;
+            throw new std::runtime_error("Unexpected predicate in GD TableScan");
     }
 }
 

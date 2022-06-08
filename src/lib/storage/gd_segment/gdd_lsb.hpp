@@ -123,6 +123,7 @@ namespace gdd_lsb
                 const uint8_t shift_offset = (sizeof(T)*8) - DEV_BITS;
 
                 if(shift_offset >= (sizeof(T)*8) ){
+                    std::cout << "Too many deviation bits! Type width: " << (sizeof(T)*8) << ", dev bits: " << shift_offset << std::endl;
                     throw new std::runtime_error("Too many deviation bits");
                 }
                 else{

@@ -88,6 +88,7 @@ namespace config_parser
         }
         
         if(!conf.weights_ok()) {
+            std::cout << "GD parameter weights do not add up to 1.0!" << std::endl;
             throw new std::runtime_error("GD parameter weights do not add up to 1.0!");
         }
 
