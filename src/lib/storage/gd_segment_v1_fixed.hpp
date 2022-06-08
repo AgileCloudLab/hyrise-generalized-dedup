@@ -15,7 +15,8 @@
 namespace opossum {
 
 /**
- * GD Segment V1 Runtime(-optimized compact vectors)
+ * GD Segment V1 with fixed 1-byte deviations, 
+ * using compile-time optimized compact vectors
  * 
  * Segment implementing GDD compression in the following way:
  * - Bases are deduplicated
@@ -28,21 +29,22 @@ class GdSegmentV1 : public BaseGdSegment {
 
 private:
   const T segment_min, segment_max;
-  const uint8_t dev_bits;
+  constexpr uint8_t DEV_BITS = 8u;
+  constexpr uint8_t BASE_BITS = sizeof(T) * 8 - DEV_BITS;
 
-  std::shared_ptr<const compact::vector<T>> bases_ptr;
-  std::shared_ptr<const compact::vector<unsigned>> deviations_ptr;
+  std::shared_ptr<const compact::vector<BASE_BITS, T>> bases_ptr;
+  std::shared_ptr<const compact::vector<DEV_BITS, unsigned>> deviations_ptr;
   std::shared_ptr<const compact::vector<size_t>> reconstruction_list;
 
 public:
 
-    GdSegmentV1(const std::vector<T>& data, const uint8_t dev_bits);
+    GdSegmentV1(const std::vector<T>& data);
 
     EncodingType encoding_type() const { return EncodingType::GdV1; };
-    std::shared_ptr<const compact::vector<T>> get_bases() const { return bases_ptr; };
-    std::shared_ptr<const compact::vector<unsigned>> get_deviations() const { return deviations_ptr; };
+    std::shared_ptr<const compact::vector<BASE_BITS, T>> get_bases() const { return bases_ptr; };
+    std::shared_ptr<const compact::vector<DEV_BITS, unsigned>> get_deviations() const { return deviations_ptr; };
     std::shared_ptr<const compact::vector<size_t>> get_reconstruction_list() const { return reconstruction_list; };
-    constexpr unsigned get_dev_bits() const noexcept { return dev_bits; }
+    constexpr unsigned get_dev_bits() const noexcept { return DEV_BITS; }
     
 
     // TableScan

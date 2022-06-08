@@ -16,10 +16,16 @@ class BaseGdSegment : public AbstractEncodedSegment {
   using AbstractEncodedSegment::AbstractEncodedSegment;
 
   EncodingType encoding_type() const override = 0;
+  std::optional<CompressedVectorType> compressed_vector_type() const override { return std::nullopt; }
 
-  virtual unsigned get_dev_bits() const = 0;
+  // Returns the number of deviation bits
+  virtual unsigned get_dev_bits() const noexcept = 0;
 
-  std::optional<CompressedVectorType> compressed_vector_type() const override { return std::nullopt;  }
+  // Returns the achieved compression gain (higher is better)
+  virtual float get_compression_gain() const = 0; 
+
+  // Returns encoding specific null value ID
+  virtual ValueID null_value_id() const = 0;
 
   // Print internal details of the GDD encoding
   virtual void print() const = 0;
@@ -44,16 +50,6 @@ class BaseGdSegment : public AbstractEncodedSegment {
     const ChunkID chunk_id, 
     RowIDPosList& matches,
     const std::shared_ptr<const AbstractPosList>& position_filter) const {};
-
-  /**
-   * @brief Returns encoding specific null value ID
-   */
-  virtual ValueID null_value_id() const = 0;
-
-  virtual size_t bases_num() const = 0;
-
-  // Returns the achieved compression gain (higher is better)
-  virtual float get_compression_gain() const = 0; 
 
 };
 }  // namespace opossum

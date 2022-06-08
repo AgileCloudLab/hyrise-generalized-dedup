@@ -1,4 +1,4 @@
-#include "gd_segment_v1.hpp"
+#include "gd_segment_v1_fixed.hpp"
 #include "base_gd_segment.hpp"
 #include "gd_segment/gdd_lsb.hpp"
 
@@ -36,9 +36,8 @@ namespace helpers {
 
 
 template <typename T, typename U>
-GdSegmentV1<T, U>::GdSegmentV1(const std::vector<T>& data, const uint8_t dev_bits) : 
+GdSegmentV1<T, U>::GdSegmentV1(const std::vector<T>& data) : 
     BaseGdSegment(data_type_from_type<T>()), 
-    dev_bits(dev_bits),
     segment_min(*std::min_element(data.begin(), data.end())),
     segment_max(*std::max_element(data.begin(), data.end()))
 {
@@ -54,19 +53,19 @@ GdSegmentV1<T, U>::GdSegmentV1(const std::vector<T>& data, const uint8_t dev_bit
     // Make compact vectors
 
     // Bases: determine the number of bits from the values (since bases can be signed)
-    const auto bases_bits_num = helpers::int_vec_num_bits<T>(std_bases);
-    auto bases_cv = compact::vector<T>(bases_bits_num, std_bases.size());
+    auto bases_cv = compact::vector<BASE_BITS, T>(std_bases.size());
     for(auto i=0U ; i<std_bases.size() ; ++i){
         bases_cv[i] = std_bases[i];
     }
     bases_ptr = std::make_shared<decltype(bases_cv)>(bases_cv);
 
-    auto deviations_cv = compact::vector<unsigned>(dev_bits, std_deviations.size());
+    auto deviations_cv = compact::vector<DEV_BITS, unsigned>(std_deviations.size());
     for(auto i=0U ; i<std_deviations.size() ; ++i){
         deviations_cv[i] = std_deviations[i];
     }
     deviations_ptr = std::make_shared<decltype(deviations_cv)>(deviations_cv);
 
+    // Calculate minimum bits for reconstruction list
     const auto max_base_index = std_bases.size()-1;
     const auto recon_list_bits = (max_base_index == 0) ? 1 : num_bits_unsigned(max_base_index);
     auto recon_list_cv = compact::vector<size_t>(recon_list_bits, std_base_indexes.size());
@@ -171,8 +170,8 @@ void GdSegmentV1<T, U>::segment_vs_value_table_scan(
     }
 
     // Check if the query base is present
-    const T query_base = gdd_lsb::rt::make_base<T>(query_value, dev_bits);
-    const unsigned query_deviation = gdd_lsb::rt::make_deviation<unsigned>(query_value, dev_bits);
+    const T query_base = gdd_lsb::ct::make_base<T, BASE_BITS>(query_value);
+    const unsigned query_deviation = gdd_lsb::ct::make_deviation<unsigned, DEV_BITS>(query_value);
 
     const auto lower_it = std::lower_bound(bases_ptr->cbegin(), bases_ptr->cend(), query_base);
 
@@ -280,7 +279,7 @@ void GdSegmentV1<T, U>::print() const {
         const auto base_idx = reconstruction_list->at(i);
         const auto base = bases_ptr->at(base_idx);
         const auto dev = deviations_ptr->at(i);
-        cout << "["<<i<<"]\t" << base << "\t" << dev << "\t" << gdd_lsb::rt::reconstruct_value<T>(base, dev, dev_bits) << '\n';
+        cout << "["<<i<<"]\t" << base << "\t" << dev << "\t" << gdd_lsb::ct::reconstruct_value<T, DEV_BITS>(base, dev) << '\n';
     }
 }
 
@@ -347,7 +346,7 @@ void GdSegmentV1<T, U>::_all_to_matches(
 template <typename T, typename U>
 T GdSegmentV1<T, U>::get(const ChunkOffset& rowidx) const {
     const auto base_idx = reconstruction_list->at(rowidx);
-    return gdd_lsb::rt::reconstruct_value<T>(bases_ptr->at(base_idx), deviations_ptr->at(rowidx), dev_bits);
+    return gdd_lsb::ct::reconstruct_value<T, DEV_BITS>(bases_ptr->at(base_idx), deviations_ptr->at(rowidx));
 }
 
 template <typename T, typename U>
@@ -355,7 +354,7 @@ void GdSegmentV1<T, U>::decompress(std::vector<T>& data) const {
     const auto recon_list = *reconstruction_list;
     data.resize(recon_list.size());
     for(auto rowidx=0U ; rowidx < recon_list.size() ; ++rowidx) {
-        data[rowidx] = gdd_lsb::rt::reconstruct_value<T>(bases_ptr->at(recon_list[rowidx]), deviations_ptr->at(rowidx), dev_bits);
+        data[rowidx] = gdd_lsb::ct::reconstruct_value<T, DEV_BITS>(bases_ptr->at(recon_list[rowidx]), deviations_ptr->at(rowidx));
     }
 }
 
