@@ -290,6 +290,7 @@ namespace gdsegment
         template<typename T>
         vector<SegmentPerformance> test_v1(
             const vector<T>& data, 
+            const vector<bool>& null_values, 
             const unsigned min_dev_bits,
             const unsigned max_dev_bits,
             const float random_access_fraction,
@@ -311,7 +312,7 @@ namespace gdsegment
             // Run the requested tests
             for(unsigned dev_bits=min_dev_bits ; dev_bits <= max_dev_bits ; ++dev_bits) {
                 
-                const auto segment = GdSegmentV1<T>(data, dev_bits);
+                const auto segment = GdSegmentV1<T>(data, dev_bits, null_values);
 
                 SegmentPerformance perf;
                 perf.dev_bits = segment.get_dev_bits();

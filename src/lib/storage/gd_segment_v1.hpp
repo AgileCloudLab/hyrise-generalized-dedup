@@ -29,6 +29,7 @@ class GdSegmentV1 : public BaseGdSegment {
 private:
   const T segment_min, segment_max;
   const uint8_t dev_bits;
+  bool nulls = false;
 
   std::shared_ptr<const compact::vector<T>> bases_ptr;
   std::shared_ptr<const compact::vector<unsigned>> deviations_ptr;
@@ -36,14 +37,13 @@ private:
 
 public:
 
-    GdSegmentV1(const std::vector<T>& data, const uint8_t dev_bits);
+    GdSegmentV1(const std::vector<T>& data, const uint8_t dev_bits, const std::vector<bool>& null_values={});
 
     EncodingType encoding_type() const { return EncodingType::GdV1; };
     std::shared_ptr<const compact::vector<T>> get_bases() const { return bases_ptr; };
     std::shared_ptr<const compact::vector<unsigned>> get_deviations() const { return deviations_ptr; };
     std::shared_ptr<const compact::vector<size_t>> get_reconstruction_list() const { return reconstruction_list; };
     constexpr unsigned get_dev_bits() const noexcept { return dev_bits; }
-    
 
     // TableScan
     void segment_vs_value_table_scan(
@@ -68,12 +68,6 @@ public:
         const std::shared_ptr<const AbstractPosList>& position_filter,
         const bool results_preallocated=false) const;
     
-    // Get the value at position 
-    T get(const ChunkOffset& rowidx) const;
-
-    // Decompress the whole segment
-    void decompress(std::vector<T>& data) const;
-
     size_t memory_usage(const MemoryUsageCalculationMode mode) const;
 
     float get_compression_gain() const;
@@ -81,8 +75,8 @@ public:
 
     size_t bases_num() const { return bases_ptr->size(); }
     ChunkOffset size() const { return static_cast<ChunkOffset>(reconstruction_list->size()); }
-    ValueID null_value_id() const { return ValueID{0}; }
-    bool isnull(const ChunkOffset& chunk_offset) const { return false; }
+    ValueID null_value_id() const;
+    bool isnull(const ChunkOffset& chunk_offset) const;
 
     AllTypeVariant operator[](const ChunkOffset chunk_offset) const {
         PerformanceWarning("operator[] used");
@@ -96,21 +90,21 @@ public:
     }
 
     std::optional<T> get_typed_value(const ChunkOffset chunk_offset) const {
-        //std::cout << "Gdd get_typed_value #" << chunk_offset << std::endl;
         // performance critical - not in cpp to help with inlining
+        const auto base_idx = reconstruction_list->at(chunk_offset);
+
+        if(static_cast<ValueID>(base_idx) == null_value_id()){
+            // Return nullopt if the value at chunk_offset is a NULL
+            return std::nullopt;
+        }
         
-        // Return nullopt if the value at chunk_offset is a NULL
-        if(isnull(chunk_offset)) return std::nullopt;
         // Reconstruct the actual value otherwise
-        return get(chunk_offset);
+        return gdd_lsb::rt::reconstruct_value<T>(bases_ptr->at(base_idx), deviations_ptr->at(chunk_offset), dev_bits);
     }
 
     std::shared_ptr<AbstractSegment> copy_using_allocator(const PolymorphicAllocator<size_t>& alloc) const {
         std::cout << "GD Segment copy called" << std::endl;
         throw new std::runtime_error("Unexpected segment copy");
-        std::vector<T> data;
-        decompress(data);
-        return std::make_shared<GdSegmentV1<T>>(data, dev_bits);
     }
 };
 

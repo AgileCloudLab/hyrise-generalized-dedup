@@ -1066,7 +1066,9 @@ int Console::_change_encoding(const std::string& args) {
     const auto encoded_segment = ChunkEncoder::encode_segment(
                                   chunk->get_segment(column_id), 
                                   table->column_data_type(column_id),
-                                  SegmentEncodingSpec{encoding_type->second}
+                                  SegmentEncodingSpec{encoding_type->second},
+                                  tablename+"."+column_name,
+                                  chunk_id
                                 );
     const auto segment_rows_after = encoded_segment->size();
 

@@ -19,8 +19,6 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 	std::shared_ptr<const compact::vector<unsigned>> deviations;
 	std::shared_ptr<const compact::vector<size_t>> reconstruction_list;
 
-	//BaseGdSegment const * segment_ptr;
-
  public:
 	using ValueType = T;
 
@@ -29,9 +27,7 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 			bases{segment.get_bases()},
 			deviations{segment.get_deviations()},
 			reconstruction_list{segment.get_reconstruction_list()}
-			{ 
-				//segment_ptr = &segment;
-			}
+			{ }
 
 	template <typename Functor>
 	void _on_with_iterators(const Functor& functor) const {
@@ -42,12 +38,12 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 
 		auto begin = Iterator<BasesIteratorType, DevsIteratorType, ReconListIteratorType>{
 				bases->cbegin(), deviations->cbegin(), reconstruction_list->cbegin(),
-				_segment.get_dev_bits(), ChunkOffset{0u}
+				_segment.get_dev_bits(), _segment.null_value_id(), ChunkOffset{0u}
 		};
 
 		auto end = Iterator<BasesIteratorType, DevsIteratorType, ReconListIteratorType>{
 				bases->cbegin(), deviations->cbegin(), reconstruction_list->cend(),
-				_segment.get_dev_bits(), _segment.size()
+				_segment.get_dev_bits(), _segment.null_value_id(), _segment.size()
 		};
 
 		functor(begin, end);
@@ -63,13 +59,13 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 
 		auto begin = PointAccessIterator<PosListIteratorType, BasesIteratorType, DevsIteratorType, ReconListIteratorType>{
 			bases->cbegin(), deviations->cbegin(), reconstruction_list->cbegin(),
-			_segment.get_dev_bits(), position_filter->cbegin(), 
-			position_filter->cbegin()
+			_segment.get_dev_bits(), _segment.null_value_id(), 
+			position_filter->cbegin(), position_filter->cbegin()
 		};
 		auto end = PointAccessIterator<PosListIteratorType, BasesIteratorType, DevsIteratorType, ReconListIteratorType>{
 			bases->cbegin(), deviations->cbegin(), reconstruction_list->cbegin(),
-			_segment.get_dev_bits(), position_filter->cbegin(), 
-			position_filter->cend()
+			_segment.get_dev_bits(), _segment.null_value_id(), 
+			position_filter->cbegin(), position_filter->cend()
 		};
 		functor(begin, end);
 	}
@@ -85,6 +81,7 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 		DevsIteratorType devs_begin_it;
 		ReconListIteratorType recon_list_it;
 		ChunkOffset _chunk_offset;
+		ValueID null_value_id;
 		unsigned dev_bits;
 
 	 public:
@@ -92,11 +89,12 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 		using IterableType = GdSegmentV1Iterable<T>;
 
 		Iterator(BasesIteratorType bases_it, DevsIteratorType devs_it, ReconListIteratorType recon_it,
-					unsigned dev_bits, ChunkOffset chunk_offset)
+					unsigned dev_bits, ValueID null_value_id, ChunkOffset chunk_offset)
 				: bases_begin_it{std::move(bases_it)},
 					devs_begin_it{std::move(devs_it)},
 					recon_list_it{std::move(recon_it)},
 					dev_bits(dev_bits),
+					null_value_id(null_value_id),
 					_chunk_offset{chunk_offset} 
 					{}
 
@@ -125,6 +123,14 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 		SegmentPosition<T> dereference() const {
 			const size_t base_idx = *recon_list_it;
 
+			//std::cout << "Linear Iterator at #"+std::to_string(_chunk_offset)+", base_idx: " + std::to_string(base_idx) + ". Null Value ID: " + std::to_string(null_value_id) << std::endl;
+
+			if(static_cast<ValueID>(base_idx) == null_value_id){
+				// NULL
+
+				return SegmentPosition<T>{ T{}, true, _chunk_offset}; 
+			}
+
 			const T base = *(bases_begin_it + base_idx);
 			const unsigned dev = *(devs_begin_it + _chunk_offset);
 			const T value = gdd_lsb::rt::reconstruct_value<T>(base, dev, dev_bits);
@@ -144,8 +150,9 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 	private:
 		BasesIteratorType bases_begin_it;
 		DevsIteratorType devs_begin_it;
-		ReconListIteratorType recon_list_it;
+		ReconListIteratorType recon_list_begin_it;
 		unsigned dev_bits;
+		ValueID null_value_id;
 
 	 public:
 		using ValueType = T;
@@ -153,7 +160,7 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 
 		PointAccessIterator(
 			BasesIteratorType bases_it, DevsIteratorType devs_it, ReconListIteratorType recon_it,
-				unsigned dev_bits, 
+				unsigned dev_bits, ValueID null_value_id,
 			PosListIteratorType position_filter_begin,
 			PosListIteratorType position_filter_it) : 
 			AbstractPointAccessSegmentIterator<
@@ -161,8 +168,9 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 							PosListIteratorType>{std::move(position_filter_begin), std::move(position_filter_it)},
 				bases_begin_it{std::move(bases_it)},
 				devs_begin_it{std::move(devs_it)},
-				recon_list_it{std::move(recon_it)},
-				dev_bits(dev_bits)
+				recon_list_begin_it{std::move(recon_it)},
+				dev_bits(dev_bits),
+				null_value_id(null_value_id)
 			{}
 
 	 private:
@@ -171,9 +179,12 @@ class GdSegmentV1Iterable : public PointAccessibleSegmentIterable<GdSegmentV1Ite
 		SegmentPosition<T> dereference() const {
 			const auto& chunk_offsets = this->chunk_offsets();
 			
-			//std::cout << "  GdV1 PAI #"+std::to_string(chunk_offsets.offset_in_referenced_chunk)+"\n";
+			const size_t base_idx = *(recon_list_begin_it + chunk_offsets.offset_in_referenced_chunk);
+			if(static_cast<ValueID>(base_idx) == null_value_id){
+				// NULL
+				return SegmentPosition<T>{ T{}, true, chunk_offsets.offset_in_poslist}; 
+			}
 
-			const size_t base_idx = *(recon_list_it + chunk_offsets.offset_in_referenced_chunk);
 			const T base = *(bases_begin_it + base_idx);
 			const unsigned dev = *(devs_begin_it + chunk_offsets.offset_in_referenced_chunk);
 			const T value = gdd_lsb::rt::reconstruct_value<T>(base, dev, dev_bits);

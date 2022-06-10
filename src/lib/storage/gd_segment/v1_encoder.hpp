@@ -31,18 +31,24 @@ public:
     {
         // Extract the values from the segment iterable
         std::vector<T> values;
+        // Bitmap of NULLs
+        std::vector<bool> null_values;
+
         segment_iterable.with_iterators([&](auto segment_it, auto segment_end) {
-            values.reserve(std::distance(segment_it, segment_end));
-            while(segment_it != segment_end) {
+            const auto segment_size = std::distance(segment_it, segment_end);
+            values.reserve(segment_size);
+            null_values.resize(segment_size, false); // fill null_values with false
+
+            for (auto current_position = size_t{0}; segment_it != segment_end; ++segment_it, ++current_position) {
                 const auto segment_item = *segment_it;
                 if (!segment_item.is_null()) {
                     const auto segment_value = segment_item.value();
                     values.push_back(segment_value);
-                } else {
-                    std::cout << "ERRROR! GdSegmentV1 does not support NULL values!" << std::endl;
-                    throw new std::runtime_error("Gd Segment V1 does not support NULLs");
                 }
-                ++segment_it;
+                else{
+                    // mark NULL
+                    null_values[current_position] = true;
+                }
             }
         });
 
@@ -50,7 +56,7 @@ public:
         const auto config = config_parser::read_config("./gd_segment_prefs.txt");
         if(config.fixed_dev_bits > 0){
             // No need to measure anything
-            return std::make_shared<GdSegmentV1<T>>(values, config.fixed_dev_bits);
+            return std::make_shared<GdSegmentV1<T>>(values, config.fixed_dev_bits, null_values);
         }
 
         if(!config.weights_ok()){
@@ -90,6 +96,8 @@ public:
             const auto max_bits = config.max_dev_bits == 0 ? (sizeof(T)*8 - 2) : config.max_dev_bits;
             perf_results = perf_test::test_v1<T>(
                 values, 
+                null_values,
+                
                 config.min_dev_bits, max_bits,
                 config.random_access_rows_fraction,
                 config.tablescan_values_fraction,
@@ -111,6 +119,6 @@ public:
 
         // Create the segment
         std::cout << table_col_name + " chunk #" + std::to_string(chunk_index) + " best deviation size: " + std::to_string(best_deviation_size) + " bits\n";
-        return std::make_shared<GdSegmentV1<T>>(values, best_deviation_size);
+        return std::make_shared<GdSegmentV1<T>>(values, best_deviation_size, null_values);
     }
 };
