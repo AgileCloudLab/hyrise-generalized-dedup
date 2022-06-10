@@ -33,6 +33,7 @@ public:
         std::vector<T> values;
         // Bitmap of NULLs
         std::vector<bool> null_values;
+        size_t nulls_num = 0;
 
         segment_iterable.with_iterators([&](auto segment_it, auto segment_end) {
             const auto segment_size = std::distance(segment_it, segment_end);
@@ -48,14 +49,18 @@ public:
                 else{
                     // mark NULL
                     null_values[current_position] = true;
+                    ++nulls_num;
                 }
             }
         });
 
-        // Load the evaluation config
+        //cout << "GdV1 Encoder. Values: " << values.size() << ", NULLs: " << nulls_num << endl;
+
+        // Load the GD evaluation config
         const auto config = config_parser::read_config("./gd_segment_prefs.txt");
         if(config.fixed_dev_bits > 0){
             // No need to measure anything
+            cout << "Using fixed " << config.fixed_dev_bits << " bits deviation\n";
             return std::make_shared<GdSegmentV1<T>>(values, config.fixed_dev_bits, null_values);
         }
 

@@ -48,28 +48,29 @@ GdSegmentV1<T, U>::GdSegmentV1(const std::vector<T>& data, const uint8_t dev_bit
     std::vector<size_t> std_base_indexes;
     gdd_lsb::rt::encode<T>(data, std_bases, std_deviations, std_base_indexes, dev_bits);
 
-    //cout << "GdSegmentV1 ctor, bases: " + to_string(std_bases.size()) << endl;;
+    //cout << "GdSegmentV1 ctor, bases: " + to_string(std_bases.size()) << ", deviation size: " << (int)dev_bits << " bits.\n";
 
     // Insert null value markers to base indexes
     if(!null_values.empty()){
         // NULLs are represented by the largest base index + 1
         const size_t null_value_base_index = std_bases.size();
 
-        size_t num_nulls = 0;
-
         for(auto i=0u ; i<null_values.size() ; ++i) {
             if(null_values[i]){
                 // There is a NULL at position 'i'
                 std_base_indexes.insert(std_base_indexes.begin() + i, null_value_base_index);
+                // Deviations must have the same size as base indexes, therefore we have to
+                // add a dummy value (zero) as the deviations of NULLs
+                std_deviations.insert(std_deviations.begin() + i, 0u);
+                // Mark the instance flag for nulls
                 nulls = true;
-                ++num_nulls;
             }
         }
-        std::cout << num_nulls << " NULLs in Gd Segment" << endl;;
+        // Make sure we added all NULLs
+        DebugAssert(std_base_indexes.size() == null_values.size(), "Reconstruction list missing NULLs!");
+        DebugAssert(std_deviations.size() == null_values.size(), "Reconstruction list missing NULLs!");
     }
     
-    // Make sure we added all NULLs
-    DebugAssert(std_base_indexes.size() == null_values.size(), "Reconstruction list missing NULLs!");
 
     // Returns the min number of bits required to represent the given unsigned 
     auto num_bits_unsigned = [&](const size_t& value) -> size_t {
@@ -443,7 +444,7 @@ void GdSegmentV1<T, U>::_all_to_matches(
 template <typename T, typename U>
 ValueID GdSegmentV1<T, U>::null_value_id() const { 
     // NULLs are represented by the max base index + 1
-    return ValueID{bases_ptr->size()}; 
+    return static_cast<ValueID>(bases_ptr->size()); 
 }
 
 template <typename T, typename U>
