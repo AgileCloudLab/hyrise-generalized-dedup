@@ -25,6 +25,9 @@ class LZ4Segment;
 template <typename T, typename>
 class GdSegmentV1;
 
+template <typename T, typename>
+class GdSegmentV1Fixed;
+
 class ReferenceSegment;
 template <typename T, EraseReferencedSegmentType>
 class ReferenceSegmentIterable;
@@ -74,6 +77,14 @@ auto create_iterable_from_segment(const GdSegmentV1<T, Enabled>& segment);
 // Fix template deduction so that we can call `create_iterable_from_segment<T, false>` on GdSegmentV1
 template <typename T, bool EraseSegmentType, typename Enabled>
 auto create_iterable_from_segment(const GdSegmentV1<T, Enabled>& segment) {
+  return create_iterable_from_segment<T, Enabled, EraseSegmentType>(segment);
+}
+
+template <typename T, typename Enabled, bool EraseSegmentType = HYRISE_DEBUG>
+auto create_iterable_from_segment(const GdSegmentV1Fixed<T, Enabled>& segment);
+
+template <typename T, bool EraseSegmentType, typename Enabled>
+auto create_iterable_from_segment(const GdSegmentV1Fixed<T, Enabled>& segment) {
   return create_iterable_from_segment<T, Enabled, EraseSegmentType>(segment);
 }
 

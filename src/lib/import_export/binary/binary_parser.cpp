@@ -168,13 +168,6 @@ std::shared_ptr<AbstractSegment> BinaryParser::_import_segment(std::ifstream& fi
       }
     case EncodingType::LZ4:
       return _import_lz4_segment<ColumnDataType>(file, row_count);
-    case EncodingType::GdV1:
-      if constexpr (encoding_supports_data_type(enum_c<EncodingType, EncodingType::GdV1>,
-                                                hana::type_c<ColumnDataType>)) {
-        return _import_gd_segment_v1<ColumnDataType>(file, row_count);
-      } else {
-        Fail("Unsupported data type for GdV1 encoding");
-      }
   }
 
   Fail("Invalid EncodingType");
@@ -247,13 +240,6 @@ std::shared_ptr<FrameOfReferenceSegment<T>> BinaryParser::_import_frame_of_refer
   return std::make_shared<FrameOfReferenceSegment<T>>(block_minima, null_values, std::move(offset_values));
 }
 
-template <typename T>
-std::shared_ptr<GdSegmentV1<T>> BinaryParser::_import_gd_segment_v1(std::ifstream& file, ChunkOffset row_count) 
-{
-  // TODO
-  std::vector<T> data;
-  return std::make_shared<GdSegmentV1<T>>(data, 1U);
-}
 
 template <typename T>
 std::shared_ptr<LZ4Segment<T>> BinaryParser::_import_lz4_segment(std::ifstream& file, ChunkOffset row_count) {

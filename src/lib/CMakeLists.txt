@@ -30,6 +30,10 @@ set(
     storage/gd_segment/performance_test.hpp
     storage/gd_segment/v1_encoder.hpp
     storage/gd_segment/v1_iterable.hpp
+    storage/gd_segment_v1_fixed.hpp
+    storage/gd_segment_v1_fixed.cpp
+    storage/gd_segment/v1_fixed_encoder.hpp
+    storage/gd_segment/v1_fixed_iterable.hpp
     storage/abstract_table_constraint.cpp
     storage/abstract_table_constraint.hpp
     storage/table_key_constraint.cpp

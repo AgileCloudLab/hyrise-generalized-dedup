@@ -10,6 +10,7 @@
 // Include your encoded segment file here!
 #include "storage/dictionary_segment.hpp"
 #include "storage/gd_segment_v1.hpp"
+#include "storage/gd_segment_v1_fixed.hpp"
 #include "storage/fixed_string_dictionary_segment.hpp"
 #include "storage/frame_of_reference_segment.hpp"
 #include "storage/lz4_segment.hpp"
@@ -36,7 +37,8 @@ constexpr auto encoded_segment_for_type = hana::make_map(
                     template_c<FixedStringDictionarySegment>),
     hana::make_pair(enum_c<EncodingType, EncodingType::FrameOfReference>, template_c<FrameOfReferenceSegment>),
     hana::make_pair(enum_c<EncodingType, EncodingType::LZ4>, template_c<LZ4Segment>),
-    hana::make_pair(enum_c<EncodingType, EncodingType::GdV1>, template_c<GdSegmentV1>)
+    hana::make_pair(enum_c<EncodingType, EncodingType::GdV1>, template_c<GdSegmentV1>),
+    hana::make_pair(enum_c<EncodingType, EncodingType::GdV1Fixed>, template_c<GdSegmentV1Fixed>)
 );
 // When adding something here, please also append all_segment_encoding_specs in the BaseTest class.
 

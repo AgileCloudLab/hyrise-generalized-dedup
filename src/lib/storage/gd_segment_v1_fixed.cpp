@@ -1,5 +1,5 @@
-#include "gd_segment_v1_fixed.hpp"
 #include "base_gd_segment.hpp"
+#include "gd_segment_v1_fixed.hpp"
 #include "gd_segment/gdd_lsb.hpp"
 
 #include <bit>
@@ -12,31 +12,8 @@ namespace opossum {
 
 using namespace std;
 
-namespace helpers {
-
-    // Returns the minimum number of bits needed to represent every element
-    // in a signed int array
-    template<typename T>
-    size_t int_vec_num_bits(const std::vector<T>& data){
-        auto max_bits = 0U;
-        auto curr_bits = max_bits;
-
-        const auto base = sizeof(unsigned) * 8;
-        for(const auto& d : data) {
-            curr_bits = base - std::countl_zero((unsigned) abs(d));
-            if(curr_bits > max_bits){
-                max_bits = curr_bits;
-            }
-        }
-        // Add an extra bit for the sign
-        return max_bits + 1;
-    }
-}
-
-
-
 template <typename T, typename U>
-GdSegmentV1<T, U>::GdSegmentV1(const std::vector<T>& data) : 
+GdSegmentV1Fixed<T, U>::GdSegmentV1Fixed(const std::vector<T>& data, const std::vector<bool>& null_values) : 
     BaseGdSegment(data_type_from_type<T>()), 
     segment_min(*std::min_element(data.begin(), data.end())),
     segment_max(*std::max_element(data.begin(), data.end()))
@@ -44,29 +21,61 @@ GdSegmentV1<T, U>::GdSegmentV1(const std::vector<T>& data) :
     std::vector<T> std_bases;
     std::vector<unsigned> std_deviations;
     std::vector<size_t> std_base_indexes;
-    gdd_lsb::rt::encode<T>(data, std_bases, std_deviations, std_base_indexes, dev_bits);
+    gdd_lsb::ct::encode<T, DEV_BITS>(data, std_bases, std_deviations, std_base_indexes);
 
+    //cout << "GdSegmentV1Fixed ctor, bases: " + to_string(std_bases.size()) << ", deviation size: " << (int)dev_bits << " bits.\n";
+
+    // Insert null value markers to base indexes
+    if(!null_values.empty()){
+        // NULLs are represented by the largest base index + 1
+        const size_t null_value_base_index = std_bases.size();
+
+        for(auto i=0u ; i<null_values.size() ; ++i) {
+            if(null_values[i]){
+                // There is a NULL at position 'i'
+                std_base_indexes.insert(std_base_indexes.begin() + i, null_value_base_index);
+                // Deviations must have the same size as base indexes, therefore we have to
+                // add a dummy value (zero) as the deviations of NULLs
+                std_deviations.insert(std_deviations.begin() + i, 0u);
+                // Mark the instance flag for nulls
+                nulls = true;
+            }
+        }
+        // Make sure we added all NULLs
+        DebugAssert(std_base_indexes.size() == null_values.size(), "Reconstruction list missing NULLs!");
+        DebugAssert(std_deviations.size() == null_values.size(), "Reconstruction list missing NULLs!");
+    }
+    
+
+    // Returns the min number of bits required to represent the given unsigned 
     auto num_bits_unsigned = [&](const size_t& value) -> size_t {
         return std::numeric_limits<size_t>::digits - std::countl_zero(value);
     };
 
-    // Make compact vectors
 
-    // Bases: determine the number of bits from the values (since bases can be signed)
-    auto bases_cv = compact::vector<BASE_BITS, T>(std_bases.size());
+    /**
+     * Make compact vectors
+     */ 
+
+    auto bases_cv = compact::vector<T, BASE_BITS>(std_bases.size());
     for(auto i=0U ; i<std_bases.size() ; ++i){
         bases_cv[i] = std_bases[i];
     }
     bases_ptr = std::make_shared<decltype(bases_cv)>(bases_cv);
 
-    auto deviations_cv = compact::vector<DEV_BITS, unsigned>(std_deviations.size());
+    // Use fixed 'DEV_BITS' for the deviations
+    // @TODO use the min bits instead?
+    auto deviations_cv = compact::vector<unsigned, DEV_BITS>(std_deviations.size());
     for(auto i=0U ; i<std_deviations.size() ; ++i){
         deviations_cv[i] = std_deviations[i];
     }
     deviations_ptr = std::make_shared<decltype(deviations_cv)>(deviations_cv);
 
-    // Calculate minimum bits for reconstruction list
-    const auto max_base_index = std_bases.size()-1;
+    // The largest value in base indexes is either:
+    //  std_bases.size()-1 if there are no NULLs, or
+    //  std_bases.size() in case there are any
+    const auto max_base_index = *std::max_element(std_base_indexes.begin(), std_base_indexes.end());
+    //std::cout << "Max base index: " << max_base_index << endl;
     const auto recon_list_bits = (max_base_index == 0) ? 1 : num_bits_unsigned(max_base_index);
     auto recon_list_cv = compact::vector<size_t>(recon_list_bits, std_base_indexes.size());
     for(auto i=0U ; i<std_base_indexes.size() ; ++i){
@@ -77,7 +86,7 @@ GdSegmentV1<T, U>::GdSegmentV1(const std::vector<T>& data) :
 
 
 template <typename T, typename U>
-void GdSegmentV1<T, U>::segment_vs_value_table_scan(
+void GdSegmentV1Fixed<T, U>::segment_vs_value_table_scan(
       const PredicateCondition& condition, 
       const AllTypeVariant& query_value_atv, 
       const ChunkID chunk_id, 
@@ -170,7 +179,7 @@ void GdSegmentV1<T, U>::segment_vs_value_table_scan(
     }
 
     // Check if the query base is present
-    const T query_base = gdd_lsb::ct::make_base<T, BASE_BITS>(query_value);
+    const T query_base = gdd_lsb::ct::make_base<T, DEV_BITS>(query_value);
     const unsigned query_deviation = gdd_lsb::ct::make_deviation<unsigned, DEV_BITS>(query_value);
 
     const auto lower_it = std::lower_bound(bases_ptr->cbegin(), bases_ptr->cend(), query_base);
@@ -202,10 +211,19 @@ void GdSegmentV1<T, U>::segment_vs_value_table_scan(
         {
             if(is_query_base_present) {
                 // Add values where either the base or the deviation are different
-                const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
-                    return (base_idx != query_value_base_idx) || (deviations_ptr->at(rowidx) != query_deviation);
-                };
-                _add_matches<decltype(base_idx_qualifies)>(chunk_id, results, position_filter, base_idx_qualifies);
+                if(nulls){
+                    // Filter out NULLs
+                    const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
+                        return (base_idx != query_value_base_idx && base_idx != null_value_id()) || (deviations_ptr->at(rowidx) != query_deviation);
+                    };
+                    _add_matches<decltype(base_idx_qualifies)>(chunk_id, results, position_filter, base_idx_qualifies);
+                }
+                else{
+                    const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
+                        return (base_idx != query_value_base_idx) || (deviations_ptr->at(rowidx) != query_deviation);
+                    };
+                    _add_matches<decltype(base_idx_qualifies)>(chunk_id, results, position_filter, base_idx_qualifies);
+                }
 
             }
             else {
@@ -221,19 +239,41 @@ void GdSegmentV1<T, U>::segment_vs_value_table_scan(
             if(is_query_base_present){
                 // Add values of higher bases
                 // Add values of the query base where the deviation is > or >= than the query deviation
-                const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
-                    return (base_idx > query_value_base_idx) || 
-                        (base_idx == query_value_base_idx && condition == PredicateCondition::GreaterThan && deviations_ptr->at(rowidx) > query_deviation) ||
-                        (base_idx == query_value_base_idx && condition == PredicateCondition::GreaterThanEquals && deviations_ptr->at(rowidx) >= query_deviation);
-                };
-                _add_matches<decltype(base_idx_qualifies)>(chunk_id, results, position_filter, base_idx_qualifies);
+                
+                if(nulls){
+                    // filter out nulls
+                    const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
+                        return (base_idx > query_value_base_idx && base_idx != null_value_id()) || 
+                            (base_idx == query_value_base_idx && condition == PredicateCondition::GreaterThan && deviations_ptr->at(rowidx) > query_deviation) ||
+                            (base_idx == query_value_base_idx && condition == PredicateCondition::GreaterThanEquals && deviations_ptr->at(rowidx) >= query_deviation);
+                    };
+                    _add_matches<decltype(base_idx_qualifies)>(chunk_id, results, position_filter, base_idx_qualifies);
+                    
+                }
+                else{
+                    const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
+                        return (base_idx > query_value_base_idx) || 
+                            (base_idx == query_value_base_idx && condition == PredicateCondition::GreaterThan && deviations_ptr->at(rowidx) > query_deviation) ||
+                            (base_idx == query_value_base_idx && condition == PredicateCondition::GreaterThanEquals && deviations_ptr->at(rowidx) >= query_deviation);
+                    };
+                    _add_matches<decltype(base_idx_qualifies)>(chunk_id, results, position_filter, base_idx_qualifies);
+                }
                 
             }
             else {
-                const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
-                    return (base_idx >= query_value_base_idx);
-                };
-                _add_matches<decltype(base_idx_qualifies)>(chunk_id, results, position_filter, base_idx_qualifies);
+                if(nulls){
+                    // Filter out nulls
+                    const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
+                        return (base_idx >= query_value_base_idx && base_idx != null_value_id());
+                    };
+                    _add_matches<decltype(base_idx_qualifies)>(chunk_id, results, position_filter, base_idx_qualifies);
+                }
+                else{
+                    const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
+                        return (base_idx >= query_value_base_idx);
+                    };
+                    _add_matches<decltype(base_idx_qualifies)>(chunk_id, results, position_filter, base_idx_qualifies);
+                }
             }
             break;
         }
@@ -244,6 +284,7 @@ void GdSegmentV1<T, U>::segment_vs_value_table_scan(
             if(is_query_base_present) {
                 // Add values of the query base where deviation is less or lessequal than the query deviation
                 // Add values of lower bases
+                // (no need to care about NULLs, since the null base index would never qualify here)
                 const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
                     return (base_idx < query_value_base_idx) || 
                         (base_idx == query_value_base_idx && condition == PredicateCondition::LessThan && deviations_ptr->at(rowidx) < query_deviation) ||
@@ -260,20 +301,22 @@ void GdSegmentV1<T, U>::segment_vs_value_table_scan(
             return;
         }
 
-        default: throw new std::runtime_error("Unexpected predicate in GD TableScan");
+        default: 
+            std::cout << "Unexpected predicate in GD TableScan: " << condition << std::endl;
+            throw new std::runtime_error("Unexpected predicate in GD TableScan");
     }
 }
 
 
 template <typename T, typename U>
-float GdSegmentV1<T, U>::get_compression_gain() const {
+float GdSegmentV1Fixed<T, U>::get_compression_gain() const {
     const float orig_data_size = sizeof(T) * reconstruction_list->size();
     const auto compressed_data = memory_usage(MemoryUsageCalculationMode::Full);
     return 1 - (compressed_data / orig_data_size);
 }
 
 template <typename T, typename U>
-void GdSegmentV1<T, U>::print() const {
+void GdSegmentV1Fixed<T, U>::print() const {
     cout << "Idx\tBase\tDev\tVal\n";
     for(auto i=0U ; i<reconstruction_list->size() ; ++i)  {
         const auto base_idx = reconstruction_list->at(i);
@@ -285,7 +328,7 @@ void GdSegmentV1<T, U>::print() const {
 
 template <typename T, typename U>
 template <typename Functor>
-void GdSegmentV1<T, U>::_add_matches(
+void GdSegmentV1Fixed<T, U>::_add_matches(
     const ChunkID chunk_id, 
     RowIDPosList& results,
     const std::shared_ptr<const AbstractPosList>& position_filter,
@@ -318,7 +361,7 @@ void GdSegmentV1<T, U>::_add_matches(
 }
 
 template <typename T, typename U>
-void GdSegmentV1<T, U>::_all_to_matches(
+void GdSegmentV1Fixed<T, U>::_all_to_matches(
     const ChunkID& chunk_id, 
     RowIDPosList& results, 
     const std::shared_ptr<const AbstractPosList>& position_filter,
@@ -330,42 +373,67 @@ void GdSegmentV1<T, U>::_all_to_matches(
     }
 
     if(position_filter){
-        // Add all PF indexes
-        for(auto i=ChunkOffset{0} ; i<position_filter->size() ; ++i){
-            results.push_back(RowID{chunk_id, i});
+        if(nulls) {
+            // Filter out nulls
+            const auto null_value_base_idx = null_value_id();
+            for(auto i=ChunkOffset{0} ; i<position_filter->size() ; ++i){
+                if(!isnull(i)){
+                    results.push_back(RowID{chunk_id, i});
+                }
+            }
+
+        }
+        else{
+            // Add all PF indexes
+            for(auto i=ChunkOffset{0} ; i<position_filter->size() ; ++i){
+                results.push_back(RowID{chunk_id, i});
+            }
         }
     }
-    else{
-        // Add all row indexes
-        for(auto rowidx=ChunkOffset{0} ; rowidx < size() ; ++rowidx){
-            results.push_back(RowID{chunk_id, rowidx});
+    else {
+        // No position filter
+
+        if(!nulls){
+            // Add all row indexes
+            for(auto rowidx=ChunkOffset{0} ; rowidx < size() ; ++rowidx){
+                results.push_back(RowID{chunk_id, rowidx});
+            }
+        }
+        else {
+            // There are nulls, filter them out
+            const auto null_value_base_idx = null_value_id();
+            for(auto rowidx=ChunkOffset{0} ; rowidx < reconstruction_list->size() ; ++rowidx){
+                const auto base_idx = reconstruction_list->at(rowidx);
+                if(base_idx != null_value_base_idx){
+                    results.push_back(RowID{chunk_id, rowidx});
+                }
+                ++rowidx;
+            }
         }
     }
 }
 
+
 template <typename T, typename U>
-T GdSegmentV1<T, U>::get(const ChunkOffset& rowidx) const {
-    const auto base_idx = reconstruction_list->at(rowidx);
-    return gdd_lsb::ct::reconstruct_value<T, DEV_BITS>(bases_ptr->at(base_idx), deviations_ptr->at(rowidx));
+ValueID GdSegmentV1Fixed<T, U>::null_value_id() const { 
+    // NULLs are represented by the max base index + 1
+    return static_cast<ValueID>(bases_ptr->size()); 
 }
 
 template <typename T, typename U>
-void GdSegmentV1<T, U>::decompress(std::vector<T>& data) const {
-    const auto recon_list = *reconstruction_list;
-    data.resize(recon_list.size());
-    for(auto rowidx=0U ; rowidx < recon_list.size() ; ++rowidx) {
-        data[rowidx] = gdd_lsb::ct::reconstruct_value<T, DEV_BITS>(bases_ptr->at(recon_list[rowidx]), deviations_ptr->at(rowidx));
-    }
+bool GdSegmentV1Fixed<T, U>::isnull(const ChunkOffset& chunk_offset) const { 
+    // NULL when the base index is the null value ID (max base index + 1)
+    return reconstruction_list->at(chunk_offset) == bases_ptr->size(); 
 }
 
 template <typename T, typename U>
-size_t GdSegmentV1<T, U>::memory_usage(const MemoryUsageCalculationMode mode) const {
+size_t GdSegmentV1Fixed<T, U>::memory_usage(const MemoryUsageCalculationMode mode) const {
     const auto bases_size = bases_ptr->bytes();
     const auto deviations_size = deviations_ptr->bytes();
     const auto reconstruction_list_size = reconstruction_list->bytes();
     return bases_size + deviations_size + reconstruction_list_size + 8; 
 }
 
-template class GdSegmentV1<int32_t>;
+template class GdSegmentV1Fixed<int32_t>;
 
 }

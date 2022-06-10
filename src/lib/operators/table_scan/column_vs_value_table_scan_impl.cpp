@@ -49,8 +49,8 @@ void ColumnVsValueTableScanImpl::_scan_non_reference_segment(
   if (const auto* dictionary_segment = dynamic_cast<const BaseDictionarySegment*>(&segment)) {
     _scan_dictionary_segment(*dictionary_segment, chunk_id, matches, position_filter);
   }
-  else if (const auto* gd_segment_v1 = dynamic_cast<const BaseGdSegment*>(&segment)) {
-    gd_segment_v1->segment_vs_value_table_scan(
+  else if (const auto* gd_segment = dynamic_cast<const BaseGdSegment*>(&segment)) {
+    gd_segment->segment_vs_value_table_scan(
         predicate_condition, 
         value, 
         chunk_id, 

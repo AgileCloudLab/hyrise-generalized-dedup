@@ -5,13 +5,14 @@
 #include <vector>
 
 #include "storage/dictionary_segment.hpp"
-#include "storage/gd_segment_v1.hpp"
 #include "storage/fixed_string_dictionary_segment.hpp"
 #include "storage/frame_of_reference_segment.hpp"
 #include "storage/lz4_segment.hpp"
 #include "storage/reference_segment.hpp"
 #include "storage/run_length_segment.hpp"
 #include "storage/value_segment.hpp"
+#include "storage/gd_segment_v1.hpp"
+#include "storage/gd_segment_v1_fixed.hpp"
 #include "utils/assert.hpp"
 
 namespace opossum {
@@ -193,10 +194,11 @@ class BinaryWriter {
   static void _write_segment(const FrameOfReferenceSegment<T>& frame_of_reference_segment, bool column_is_nullable,
                              std::ofstream& ofstream);
 
-  // TODO implement
   template <typename T>
-  static void _write_segment(const GdSegmentV1<T>& gd_segment_v1, bool column_is_nullable,
-                             std::ofstream& ofstream);
+  static void _write_segment(const GdSegmentV1<T>& gd_segment, bool column_is_nullable, std::ofstream& ofstream);
+  template <typename T>
+  static void _write_segment(const GdSegmentV1Fixed<T>& gd_segment, bool column_is_nullable, std::ofstream& ofstream);
+
 
   /**
    * LZ4Segments are dumped with the following layout:

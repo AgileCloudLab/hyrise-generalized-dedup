@@ -238,6 +238,10 @@ std::string Print::_segment_type(const std::shared_ptr<AbstractSegment>& segment
         segment_type += "GdV1";
         break;
       }
+      case EncodingType::GdV1Fixed: {
+        segment_type += "GdV1Fixed";
+        break;
+      }
     }
     if (encoded_segment->compressed_vector_type()) {
       switch (*encoded_segment->compressed_vector_type()) {

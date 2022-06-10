@@ -253,6 +253,17 @@ void BinaryWriter::_write_segment(const RunLengthSegment<T>& run_length_segment,
   export_values(ofstream, *run_length_segment.end_positions());
 }
 
+template <typename T>
+void BinaryWriter::_write_segment(const GdSegmentV1<T>& gd_segment_v1, bool column_is_nullable,
+                                  std::ofstream& ofstream){
+  // TODO
+}
+template <typename T>
+void BinaryWriter::_write_segment(const GdSegmentV1Fixed<T>& gd_segment_v1, bool column_is_nullable,
+                                  std::ofstream& ofstream){
+  // TODO
+}
+
 template <>
 void BinaryWriter::_write_segment(const FrameOfReferenceSegment<int32_t>& frame_of_reference_segment,
                                   bool column_is_nullable, std::ofstream& ofstream) {
@@ -278,12 +289,6 @@ void BinaryWriter::_write_segment(const FrameOfReferenceSegment<int32_t>& frame_
                             frame_of_reference_segment.offset_values());
 }
 
-
-template <>
-void BinaryWriter::_write_segment(const GdSegmentV1<int32_t>& gd_segment_v1,
-                                  bool column_is_nullable, std::ofstream& ofstream){
-  // TODO
-}
 
 
 template <typename T>

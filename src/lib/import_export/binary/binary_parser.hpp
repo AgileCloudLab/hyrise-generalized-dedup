@@ -88,9 +88,6 @@ class BinaryParser {
                                                                                         ChunkOffset row_count);
 
   template <typename T>
-  static std::shared_ptr<GdSegmentV1<T>> _import_gd_segment_v1(std::ifstream& file,
-                                                                                        ChunkOffset row_count);
-  template <typename T>
   static std::shared_ptr<LZ4Segment<T>> _import_lz4_segment(std::ifstream& file, ChunkOffset row_count);
 
   // Calls the _import_attribute_vector<uintX_t> function that corresponds to the given compressed_vector_type_id.

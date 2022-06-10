@@ -41,6 +41,7 @@ const boost::bimap<EncodingType, std::string> encoding_type_to_string = make_bim
     {EncodingType::LZ4, "LZ4"},
     {EncodingType::Unencoded, "Unencoded"},
     {EncodingType::GdV1, "GdV1"},
+    {EncodingType::GdV1Fixed, "GdV1Fixed"},
 });
 
 const boost::bimap<FileType, std::string> file_type_to_string = make_bimap<FileType, std::string>(

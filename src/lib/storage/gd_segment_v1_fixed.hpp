@@ -15,8 +15,7 @@
 namespace opossum {
 
 /**
- * GD Segment V1 with fixed 1-byte deviations, 
- * using compile-time optimized compact vectors
+ * GD Segment V1 Runtime(-optimized compact vectors)
  * 
  * Segment implementing GDD compression in the following way:
  * - Bases are deduplicated
@@ -24,28 +23,29 @@ namespace opossum {
  * - Reconstruction list consists of base indexes
  */
 template <typename T, typename = std::enable_if_t<encoding_supports_data_type(
-                          enum_c<EncodingType, EncodingType::GdV1>, hana::type_c<T>)>>
-class GdSegmentV1 : public BaseGdSegment {
+                          enum_c<EncodingType, EncodingType::GdV1Fixed>, hana::type_c<T>)>>
+class GdSegmentV1Fixed : public BaseGdSegment {
 
 private:
-  const T segment_min, segment_max;
-  constexpr uint8_t DEV_BITS = 8u;
-  constexpr uint8_t BASE_BITS = sizeof(T) * 8 - DEV_BITS;
+    const T segment_min, segment_max;
 
-  std::shared_ptr<const compact::vector<BASE_BITS, T>> bases_ptr;
-  std::shared_ptr<const compact::vector<DEV_BITS, unsigned>> deviations_ptr;
-  std::shared_ptr<const compact::vector<size_t>> reconstruction_list;
+    constexpr static unsigned DEV_BITS = 8u;
+    constexpr static unsigned BASE_BITS = (sizeof(T)*8) - 8u;
+    bool nulls = false;
+
+    std::shared_ptr<const compact::vector<T, BASE_BITS>> bases_ptr;
+    std::shared_ptr<const compact::vector<unsigned, DEV_BITS>> deviations_ptr;
+    std::shared_ptr<const compact::vector<size_t>> reconstruction_list;
 
 public:
 
-    GdSegmentV1(const std::vector<T>& data);
+    GdSegmentV1Fixed(const std::vector<T>& data, const std::vector<bool>& null_values={});
 
-    EncodingType encoding_type() const { return EncodingType::GdV1; };
-    std::shared_ptr<const compact::vector<BASE_BITS, T>> get_bases() const { return bases_ptr; };
-    std::shared_ptr<const compact::vector<DEV_BITS, unsigned>> get_deviations() const { return deviations_ptr; };
+    EncodingType encoding_type() const { return EncodingType::GdV1Fixed; };
+    std::shared_ptr<const compact::vector<T, BASE_BITS>> get_bases() const { return bases_ptr; };
+    std::shared_ptr<const compact::vector<unsigned, DEV_BITS>> get_deviations() const { return deviations_ptr; };
     std::shared_ptr<const compact::vector<size_t>> get_reconstruction_list() const { return reconstruction_list; };
     constexpr unsigned get_dev_bits() const noexcept { return DEV_BITS; }
-    
 
     // TableScan
     void segment_vs_value_table_scan(
@@ -70,12 +70,6 @@ public:
         const std::shared_ptr<const AbstractPosList>& position_filter,
         const bool results_preallocated=false) const;
     
-    // Get the value at position 
-    T get(const ChunkOffset& rowidx) const;
-
-    // Decompress the whole segment
-    void decompress(std::vector<T>& data) const;
-
     size_t memory_usage(const MemoryUsageCalculationMode mode) const;
 
     float get_compression_gain() const;
@@ -83,8 +77,8 @@ public:
 
     size_t bases_num() const { return bases_ptr->size(); }
     ChunkOffset size() const { return static_cast<ChunkOffset>(reconstruction_list->size()); }
-    ValueID null_value_id() const { return ValueID{0}; }
-    bool isnull(const ChunkOffset& chunk_offset) const { return false; }
+    ValueID null_value_id() const;
+    bool isnull(const ChunkOffset& chunk_offset) const;
 
     AllTypeVariant operator[](const ChunkOffset chunk_offset) const {
         PerformanceWarning("operator[] used");
@@ -98,25 +92,25 @@ public:
     }
 
     std::optional<T> get_typed_value(const ChunkOffset chunk_offset) const {
-        //std::cout << "Gdd get_typed_value #" << chunk_offset << std::endl;
         // performance critical - not in cpp to help with inlining
+        const auto base_idx = reconstruction_list->at(chunk_offset);
+
+        if(static_cast<ValueID>(base_idx) == null_value_id()){
+            // Return nullopt if the value at chunk_offset is a NULL
+            return std::nullopt;
+        }
         
-        // Return nullopt if the value at chunk_offset is a NULL
-        if(isnull(chunk_offset)) return std::nullopt;
         // Reconstruct the actual value otherwise
-        return get(chunk_offset);
+        return gdd_lsb::ct::reconstruct_value<T, DEV_BITS>(bases_ptr->at(base_idx), deviations_ptr->at(chunk_offset));
     }
 
     std::shared_ptr<AbstractSegment> copy_using_allocator(const PolymorphicAllocator<size_t>& alloc) const {
         std::cout << "GD Segment copy called" << std::endl;
         throw new std::runtime_error("Unexpected segment copy");
-        std::vector<T> data;
-        decompress(data);
-        return std::make_shared<GdSegmentV1<T>>(data, dev_bits);
     }
 };
 
 //EXPLICITLY_DECLARE_DATA_TYPES(GddSegmentV1Fixed);
-extern template class GdSegmentV1<int32_t>;
+extern template class GdSegmentV1Fixed<int32_t>;
 
 } // namespace opossum
