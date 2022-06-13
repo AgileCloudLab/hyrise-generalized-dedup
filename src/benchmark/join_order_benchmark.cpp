@@ -208,6 +208,8 @@ int main(int argc, char* argv[]) {
     std::cout << "\n\nPRINTING COLUMN SIZES\n";
     // Print table sizes after the benchmark
     const auto tables = Hyrise::get().storage_manager.table_names();
+
+    size_t int_columns_total = 0;
     for(const auto& tablename : tables){
     // Get table
     const auto& table = Hyrise::get().storage_manager.get_table(tablename);
@@ -218,6 +220,8 @@ int main(int argc, char* argv[]) {
     std::vector<std::vector<size_t>> memory_per_column(columns_num);
     std::vector<std::string> segment_encodings(columns_num);
     std::vector<std::string> column_types(columns_num);
+
+    
 
 
     for (ChunkID chunk_id(0); chunk_id < table->chunk_count(); ++chunk_id) {
@@ -247,28 +251,20 @@ int main(int argc, char* argv[]) {
       }
     }
     
+    
     // Print the total memory per column
     for(size_t col_idx=0 ; col_idx < memory_per_column.size() ; ++col_idx) {
       //std::stringstream result;
       //std::copy(memory_per_column[col_idx].begin(), memory_per_column[col_idx].end(), std::ostream_iterator<int>(result, " "));
-      if(false){
-
-        // Print the size and type of each segment
-        std::cout << column_names[col_idx] + ":\n";
-        for(size_t s_idx=0 ; s_idx < memory_per_column[col_idx].size() ; s_idx++) {
-          std::cout << " " + std::to_string(memory_per_column[col_idx][s_idx]) + " bytes ("+segment_encodings[col_idx][s_idx]+")\n";
-        }
-        const auto total = std::accumulate(memory_per_column[col_idx].begin(), memory_per_column[col_idx].end(), 0);
-        std::cout << " TOTAL: " + std::to_string(total) + " bytes\n";
-      }
-      else {
         // Print just the name and total memory
         const auto total = std::accumulate(memory_per_column[col_idx].begin(), memory_per_column[col_idx].end(), 0);
         std::cout << tablename+"."+column_names[col_idx] + "," + std::to_string(total) + ","+segment_encodings[col_idx] + "," + column_types[col_idx] +"\n";
-      }
+        if(column_types[col_idx] == "int"){
+            int_columns_total += total;
+        }
     }
-
   } // end table
+std::cout << "Int columns total bytes: " << int_columns_total << std::endl; 
 }
 
 

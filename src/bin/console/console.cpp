@@ -1108,7 +1108,8 @@ int Console::_show_memory_usage(const std::string& args){
     tables = Hyrise::get().storage_manager.table_names();
   }
 
-  for(const auto& tablename : tables){
+  size_t int_columns_total = 0;
+  for(const auto& tablename : tables) {
     // Get table
     const auto& table = Hyrise::get().storage_manager.get_table(tablename);
 
@@ -1147,7 +1148,7 @@ int Console::_show_memory_usage(const std::string& args){
       }
     }
     
-    // Print the total memory per column
+    // Print the total memory per column of the current table
     for(size_t col_idx=0 ; col_idx < memory_per_column.size() ; ++col_idx) {
       //std::stringstream result;
       //std::copy(memory_per_column[col_idx].begin(), memory_per_column[col_idx].end(), std::ostream_iterator<int>(result, " "));
@@ -1166,9 +1167,15 @@ int Console::_show_memory_usage(const std::string& args){
         const auto total = std::accumulate(memory_per_column[col_idx].begin(), memory_per_column[col_idx].end(), 0);
         out(tablename+"."+column_names[col_idx] + "," + std::to_string(total) + ","+segment_encodings[col_idx] + "," + column_types[col_idx] +"\n");
       }
-    }
 
+      if(column_types[col_idx] == "int"){
+          int_columns_total += total;
+      }
+      
+    }
   } // end table
+  
+  std::cout << "Int columns total bytes: " << int_columns_total << std::endl; 
 
   return ReturnCode::Ok;
 }
