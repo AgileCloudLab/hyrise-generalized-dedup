@@ -181,9 +181,7 @@ void GdSegmentV1Fixed<T, U>::segment_vs_value_table_scan(
     // Check if the query base is present
     const T query_base = gdd_lsb::ct::make_base<T, DEV_BITS>(query_value);
     const unsigned query_deviation = gdd_lsb::ct::make_deviation<unsigned, DEV_BITS>(query_value);
-
     const auto lower_it = std::lower_bound(bases_ptr->cbegin(), bases_ptr->cend(), query_base);
-
     const bool is_query_base_present = std::distance(bases_ptr->cbegin(), lower_it) <= bases_ptr->size() && (*lower_it == query_base);
     //const bool is_query_base_present = (lower_it != bases_ptr->cend()) && (*lower_it == query_base);
     const size_t query_value_base_idx = std::distance(bases_ptr->cbegin(), lower_it);
@@ -307,22 +305,165 @@ void GdSegmentV1Fixed<T, U>::segment_vs_value_table_scan(
     }
 }
 
-
 template <typename T, typename U>
-float GdSegmentV1Fixed<T, U>::get_compression_gain() const {
-    const float orig_data_size = sizeof(T) * reconstruction_list->size();
-    const auto compressed_data = memory_usage(MemoryUsageCalculationMode::Full);
-    return 1 - (compressed_data / orig_data_size);
-}
+void GdSegmentV1Fixed<T, U>::segment_between_table_scan(
+        const PredicateCondition& condition, 
+        const AllTypeVariant& left_value, 
+        const AllTypeVariant& right_value, 
+        const ChunkID chunk_id, 
+        RowIDPosList& matches,
+        const std::shared_ptr<const AbstractPosList>& position_filter) const
+{
+    //const auto matches_before = matches.size();
+    DebugAssert(matches.size() == 0, "Matches not empty!");
 
-template <typename T, typename U>
-void GdSegmentV1Fixed<T, U>::print() const {
-    cout << "Idx\tBase\tDev\tVal\n";
-    for(auto i=0U ; i<reconstruction_list->size() ; ++i)  {
-        const auto base_idx = reconstruction_list->at(i);
-        const auto base = bases_ptr->at(base_idx);
-        const auto dev = deviations_ptr->at(i);
-        cout << "["<<i<<"]\t" << base << "\t" << dev << "\t" << gdd_lsb::ct::reconstruct_value<T, DEV_BITS>(base, dev) << '\n';
+    auto typed_left_value = boost::get<T>(left_value);
+    auto typed_right_value = boost::get<T>(right_value);
+
+    // Make sure left <= right
+    if(typed_right_value < typed_left_value){
+        const auto tmp = typed_left_value;
+        typed_left_value = typed_right_value;
+        typed_right_value = tmp;
+    }
+
+    //std::cout << "GdSegment scan: BETWEEN" << typed_left_value << " AND " << typed_right_value << std::endl;
+
+    { // Step 1: early exit based on segment range
+        if(typed_right_value < segment_min || typed_left_value > segment_max){
+            // Query range is completely out of the segment range, no matches
+            return;
+        }
+
+        if(typed_left_value <= segment_min && typed_right_value >= segment_max){
+            // Query range completely includes the segment range, all elements are matches
+            _all_to_matches(chunk_id, matches, position_filter);
+            return;
+        }
+    }
+
+    {// Step 2: Check if the query bounds are in existing base ranges
+
+        // Left value
+        
+        const auto left_value_base = gdd_lsb::ct::make_base<T, DEV_BITS>(typed_left_value);
+        const auto left_lower_it = std::lower_bound(bases_ptr->cbegin(), bases_ptr->cend(), left_value_base);
+        const bool is_left_base_present = (*left_lower_it == left_value_base);
+        // Determine base index that has to be scanned
+        const size_t left_base_idx = std::distance(bases_ptr->begin(), left_lower_it);
+        
+
+        // Right value
+        const auto right_value_base = gdd_lsb::ct::make_base<T, DEV_BITS>(typed_right_value);
+        const auto right_lower_it = std::lower_bound(bases_ptr->cbegin(), bases_ptr->cend(), right_value_base);
+        const bool is_right_base_present = (*right_lower_it == right_value_base);
+        // Determine base index that has to be scanned
+        const size_t right_base_idx = std::distance(bases_ptr->begin(), right_lower_it);
+
+        // Determine which bases need to be scanned and with what operator
+        
+        // Special case: both query values are in the same base range, this has to be scanned with the BETWEEN op
+        if(is_left_base_present && is_right_base_present && left_base_idx == right_base_idx){
+            const auto left_deviation = gdd_lsb::ct::make_deviation<unsigned, DEV_BITS>(typed_left_value);
+            const auto right_deviation = gdd_lsb::ct::make_deviation<unsigned, DEV_BITS>(typed_right_value);
+
+            if(condition == PredicateCondition::BetweenExclusive){
+                // > left and < right
+                const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
+                    return (base_idx == left_base_idx) && 
+                            (deviations_ptr->at(rowidx) > left_deviation) && 
+                            (deviations_ptr->at(rowidx) < right_deviation);
+                };
+                _add_matches<decltype(base_idx_qualifies)>(chunk_id, matches, position_filter, base_idx_qualifies);
+            }
+            else if(condition == PredicateCondition::BetweenLowerExclusive){
+                // >= left and < right
+                const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
+                    return (base_idx == left_base_idx) && 
+                            (deviations_ptr->at(rowidx) >= left_deviation) && 
+                            (deviations_ptr->at(rowidx) < right_deviation);
+                };
+                _add_matches<decltype(base_idx_qualifies)>(chunk_id, matches, position_filter, base_idx_qualifies);
+            }
+            else if(condition == PredicateCondition::BetweenUpperExclusive){
+                // > left and <= right
+                const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
+                    return (base_idx == left_base_idx) && 
+                            (deviations_ptr->at(rowidx) > left_deviation) && 
+                            (deviations_ptr->at(rowidx) <= right_deviation);
+                };
+                _add_matches<decltype(base_idx_qualifies)>(chunk_id, matches, position_filter, base_idx_qualifies);
+            }
+            else if(condition == PredicateCondition::BetweenInclusive){
+                // >= left and <= right
+                const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
+                    return (base_idx == left_base_idx) && 
+                            (deviations_ptr->at(rowidx) >= left_deviation) && 
+                            (deviations_ptr->at(rowidx) <= right_deviation);
+                };
+                _add_matches<decltype(base_idx_qualifies)>(chunk_id, matches, position_filter, base_idx_qualifies);
+            }
+            else {
+                std::stringstream ss;
+                ss << "Unexpected BETWEEN predicate: " << condition;
+                throw std::runtime_error(ss.str());
+            }
+            // Added all matches, return
+            return;
+        }
+
+        DebugAssert(left_base_idx != right_base_idx, "Base indexes should not be equal at this point");
+
+        if(is_left_base_present) {
+            // Add matches from the left base
+            const auto left_deviation = gdd_lsb::ct::make_deviation<unsigned, DEV_BITS>(typed_left_value);
+
+            if(condition == PredicateCondition::BetweenLowerExclusive || condition == PredicateCondition::BetweenExclusive) {
+                // Same as PredicateCondition::GreaterThan
+                const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
+                    return (base_idx == left_base_idx) && (deviations_ptr->at(rowidx) > left_deviation);
+                };
+                _add_matches<decltype(base_idx_qualifies)>(chunk_id, matches, position_filter, base_idx_qualifies);
+            }
+            else{
+                // Same as PredicateCondition::GreaterThanEquals
+                const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
+                    return (base_idx == left_base_idx) && (deviations_ptr->at(rowidx) >= left_deviation);
+                };
+                _add_matches<decltype(base_idx_qualifies)>(chunk_id, matches, position_filter, base_idx_qualifies);
+            }
+        }
+
+        if (is_right_base_present) {
+            // Add matches from the right base
+            const auto right_deviation = gdd_lsb::ct::make_deviation<unsigned, DEV_BITS>(typed_right_value);
+            
+            if(condition == PredicateCondition::BetweenUpperExclusive || condition == PredicateCondition::BetweenExclusive) {
+                // Same as PredicateCondition::LessThan
+                const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
+                    return (base_idx == right_base_idx) && (deviations_ptr->at(rowidx) < right_deviation);
+                };
+                _add_matches<decltype(base_idx_qualifies)>(chunk_id, matches, position_filter, base_idx_qualifies);
+            }
+            else {
+                // Same as PredicateCondition::LessThanEquals
+                const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
+                    return (base_idx == right_base_idx) && (deviations_ptr->at(rowidx) <= right_deviation);
+                };
+                _add_matches<decltype(base_idx_qualifies)>(chunk_id, matches, position_filter, base_idx_qualifies);
+            }
+        }
+
+        // If there are any base ranges BETWEEN left and right base index, add them
+        const size_t start_base_idx = is_left_base_present ? left_base_idx+1 : 0;
+        const size_t end_base_idx = is_right_base_present ? right_base_idx : bases_ptr->size();
+        if(end_base_idx >= start_base_idx){
+            // Add all values from bases between start_base_idx (inclusive) and end_base_idx (exclusive)
+            const auto base_idx_qualifies = [&](const size_t& base_idx, const size_t& rowidx) -> bool {
+                return (base_idx >= start_base_idx) && (base_idx < end_base_idx);
+            };
+            _add_matches<decltype(base_idx_qualifies)>(chunk_id, matches, position_filter, base_idx_qualifies);
+        }
     }
 }
 
@@ -413,6 +554,24 @@ void GdSegmentV1Fixed<T, U>::_all_to_matches(
     }
 }
 
+
+template <typename T, typename U>
+float GdSegmentV1Fixed<T, U>::get_compression_gain() const {
+    const float orig_data_size = sizeof(T) * reconstruction_list->size();
+    const auto compressed_data = memory_usage(MemoryUsageCalculationMode::Full);
+    return 1 - (compressed_data / orig_data_size);
+}
+
+template <typename T, typename U>
+void GdSegmentV1Fixed<T, U>::print() const {
+    cout << "Idx\tBase\tDev\tVal\n";
+    for(auto i=0U ; i<reconstruction_list->size() ; ++i)  {
+        const auto base_idx = reconstruction_list->at(i);
+        const auto base = bases_ptr->at(base_idx);
+        const auto dev = deviations_ptr->at(i);
+        cout << "["<<i<<"]\t" << base << "\t" << dev << "\t" << gdd_lsb::ct::reconstruct_value<T, DEV_BITS>(base, dev) << '\n';
+    }
+}
 
 template <typename T, typename U>
 ValueID GdSegmentV1Fixed<T, U>::null_value_id() const { 

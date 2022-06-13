@@ -44,6 +44,7 @@ void ColumnBetweenTableScanImpl::_scan_non_reference_segment(
   // faster than the sorted search. Without this workaround, TPC-H Q6 would lose up to 30%. When the iterator issues of
   // #1531 are resolved, the current workaround should be revisited.
   const auto* dictionary_segment = dynamic_cast<const BaseDictionarySegment*>(&segment);
+  
   if (!chunk_sorted_by.empty() &&
       !(dictionary_segment && position_filter && _in_table->column_data_type(_column_id) == DataType::String)) {
     for (const auto& sorted_by : chunk_sorted_by) {
@@ -57,7 +58,19 @@ void ColumnBetweenTableScanImpl::_scan_non_reference_segment(
   // Select optimized or generic scanning implementation based on segment type
   if (dictionary_segment) {
     _scan_dictionary_segment(*dictionary_segment, chunk_id, matches, position_filter);
-  } else {
+  } 
+  
+  else if (const auto* gd_segment = dynamic_cast<const BaseGdSegment*>(&segment)) {
+    gd_segment->segment_between_table_scan(
+        predicate_condition, 
+        left_value,
+        right_value, 
+        chunk_id, 
+        matches,
+        position_filter);
+  } 
+
+  else {
     _scan_generic_segment(segment, chunk_id, matches, position_filter);
   }
 }
@@ -72,7 +85,11 @@ void ColumnBetweenTableScanImpl::_scan_generic_segment(
     // DictionarySegments are handled in _scan_dictionary_segment()
     // ReferenceSegments are handled via position_filter
     if constexpr (!is_dictionary_segment_iterable_v<typename decltype(it)::IterableType> &&
-                  !is_reference_segment_iterable_v<typename decltype(it)::IterableType>) {
+                  !is_reference_segment_iterable_v<typename decltype(it)::IterableType>
+                  
+                  && !is_gd_segment_v1_iterable_v<typename decltype(it)::IterableType>
+                  && !is_gd_segment_v1_fixed_iterable_v<typename decltype(it)::IterableType>
+                   ) {
       const auto typed_left_value = boost::get<ColumnDataType>(left_value);
       const auto typed_right_value = boost::get<ColumnDataType>(right_value);
 

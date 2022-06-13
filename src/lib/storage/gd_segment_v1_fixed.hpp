@@ -47,12 +47,21 @@ public:
     std::shared_ptr<const compact::vector<size_t>> get_reconstruction_list() const { return reconstruction_list; };
     constexpr unsigned get_dev_bits() const noexcept { return DEV_BITS; }
 
-    // TableScan
+    // TableScan: Column VS value
     void segment_vs_value_table_scan(
         const PredicateCondition& condition, 
         const AllTypeVariant& query_value_atv, 
         const ChunkID chunk_id, 
         RowIDPosList& results,
+        const std::shared_ptr<const AbstractPosList>& position_filter) const;
+    
+    // TableScan: Column BETWEEN left_value AND right_value
+    void segment_between_table_scan(
+        const PredicateCondition& condition, 
+        const AllTypeVariant& left_value, 
+        const AllTypeVariant& right_value, 
+        const ChunkID chunk_id, 
+        RowIDPosList& matches,
         const std::shared_ptr<const AbstractPosList>& position_filter) const;
     
     template<typename Functor>
@@ -69,6 +78,8 @@ public:
         RowIDPosList& results, 
         const std::shared_ptr<const AbstractPosList>& position_filter,
         const bool results_preallocated=false) const;
+    
+    
     
     size_t memory_usage(const MemoryUsageCalculationMode mode) const;
 
