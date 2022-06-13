@@ -1,4 +1,6 @@
 #include <filesystem>
+#include <sstream>
+#include <iostream>
 
 #include <boost/algorithm/string.hpp>
 #include <cxxopts.hpp>
@@ -11,6 +13,8 @@
 #include "types.hpp"
 #include "utils/performance_warning.hpp"
 #include "utils/sqlite_add_indices.hpp"
+#include "storage/base_gd_segment.hpp"
+#include "storage/base_dictionary_segment.hpp"
 
 /**
  * The Join Order Benchmark was introduced by Leis et al. "How good are query optimizers, really?".
