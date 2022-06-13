@@ -52,6 +52,15 @@ public:
         const ChunkID chunk_id, 
         RowIDPosList& results,
         const std::shared_ptr<const AbstractPosList>& position_filter) const;
+
+    // TableScan: Column BETWEEN left_value AND right_value
+    void segment_between_table_scan(
+        const PredicateCondition& condition, 
+        const AllTypeVariant& left_value, 
+        const AllTypeVariant& right_value, 
+        const ChunkID chunk_id, 
+        RowIDPosList& matches,
+        const std::shared_ptr<const AbstractPosList>& position_filter) const;
     
     template<typename Functor>
     inline void _add_matches(
