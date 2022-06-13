@@ -49,7 +49,7 @@ void ColumnVsValueTableScanImpl::_scan_non_reference_segment(
   if (const auto* dictionary_segment = dynamic_cast<const BaseDictionarySegment*>(&segment)) {
     _scan_dictionary_segment(*dictionary_segment, chunk_id, matches, position_filter);
   }
-  /*
+
   else if (const auto* gd_segment = dynamic_cast<const BaseGdSegment*>(&segment)) {
     gd_segment->segment_vs_value_table_scan(
         predicate_condition, 
@@ -58,7 +58,7 @@ void ColumnVsValueTableScanImpl::_scan_non_reference_segment(
         matches,
         position_filter);
   } 
-  */
+
   else {
     _scan_generic_segment(segment, chunk_id, matches, position_filter);
   }
@@ -74,10 +74,10 @@ void ColumnVsValueTableScanImpl::_scan_generic_segment(
     // GdSegmentV1 handled with its own tablescan implementation
     if constexpr (!is_dictionary_segment_iterable_v<typename decltype(it)::IterableType> &&
                   !is_reference_segment_iterable_v<typename decltype(it)::IterableType> 
-                  /*
+                  
                   && !is_gd_segment_v1_iterable_v<typename decltype(it)::IterableType>
                   && !is_gd_segment_v1_fixed_iterable_v<typename decltype(it)::IterableType>
-                  */
+                  
                   ) {
       using ColumnDataType = typename decltype(it)::ValueType;
 
