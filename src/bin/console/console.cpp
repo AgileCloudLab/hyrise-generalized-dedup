@@ -15,6 +15,7 @@
 #include <memory>
 #include <regex>
 #include <string>
+#include <sstream>
 #include <vector>
 
 #include <boost/algorithm/string/join.hpp>
@@ -1115,7 +1116,8 @@ int Console::_show_memory_usage(const std::string& args){
     const auto columns_num = table->column_count();
     const auto column_names = table->column_names();
     std::vector<std::vector<size_t>> memory_per_column(columns_num);
-    std::vector<std::vector<std::string>> segment_encodings(columns_num);
+    std::vector<std::string> segment_encodings(columns_num);
+    std::vector<std::string> column_types(columns_num);
 
 
     for (ChunkID chunk_id(0); chunk_id < table->chunk_count(); ++chunk_id) {
@@ -1126,20 +1128,27 @@ int Console::_show_memory_usage(const std::string& args){
         // Calculate segment memory use
         memory_per_column[colid].push_back(segment->memory_usage(MemoryUsageCalculationMode::Full));
         
-        // Figure out the encoding type
-        if(dynamic_cast<BaseDictionarySegment*>(&*segment)){
-          segment_encodings[colid].push_back("Dictionary");
-        }
-        else if(dynamic_cast<BaseGdSegment*>(&*segment)){
-          segment_encodings[colid].push_back("GDD");
-        }
-        else{
-          segment_encodings[colid].push_back("Value");
+        if(chunk_id == ChunkID{0}) {
+          // Figure out the encoding type of the first chunk (they all should be the same)
+          if(dynamic_cast<BaseDictionarySegment*>(&*segment)){
+            segment_encodings[colid] = "Dictionary";
+          }
+          else if(dynamic_cast<BaseGdSegment*>(&*segment)){
+            segment_encodings[colid] = "GDD";
+          }
+          else{
+            segment_encodings[colid] = "Other";
+          }
+
+          std::stringstream ss;
+          ss << table->column_data_type(colid);
+          column_types[colid] = ss.str();
         }
       }
     }
     
-    for(size_t col_idx=0 ; col_idx < memory_per_column.size() ; ++col_idx){
+    // Print the total memory per column
+    for(size_t col_idx=0 ; col_idx < memory_per_column.size() ; ++col_idx) {
       //std::stringstream result;
       //std::copy(memory_per_column[col_idx].begin(), memory_per_column[col_idx].end(), std::ostream_iterator<int>(result, " "));
       if(false){
@@ -1155,10 +1164,11 @@ int Console::_show_memory_usage(const std::string& args){
       else {
         // Print just the name and total memory
         const auto total = std::accumulate(memory_per_column[col_idx].begin(), memory_per_column[col_idx].end(), 0);
-        out(tablename+"."+column_names[col_idx] + ", " + std::to_string(total) + "\n");
+        out(tablename+"."+column_names[col_idx] + "," + std::to_string(total) + ","+segment_encodings[col_idx] + "," + column_types[col_idx] +"\n");
       }
     }
-  }
+
+  } // end table
 
   return ReturnCode::Ok;
 }
