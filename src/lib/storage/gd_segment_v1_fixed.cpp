@@ -339,7 +339,6 @@ void GdSegmentV1Fixed<T, U>::_add_matches(
         // Check only the position filter
         ChunkOffset pf_idx{0};
         size_t rowidx, base_idx;
-        #pragma omp simd
         for(const auto& pf : *position_filter){
             rowidx = pf.chunk_offset;
             base_idx = recon_list[rowidx];
@@ -352,7 +351,6 @@ void GdSegmentV1Fixed<T, U>::_add_matches(
     }
     else {
         size_t base_idx;
-        #pragma omp simd
         for(auto rowidx=ChunkOffset{0} ; rowidx<recon_list.size() ; ++rowidx){
             base_idx = recon_list[rowidx];
             if (base_idx_qualifies(base_idx, rowidx)) {
@@ -378,7 +376,6 @@ void GdSegmentV1Fixed<T, U>::_all_to_matches(
         if(nulls) {
             // Filter out nulls
             const auto null_value_base_idx = null_value_id();
-            #pragma omp simd
             for(auto i=ChunkOffset{0} ; i<position_filter->size() ; ++i){
                 if(!isnull(i)){
                     results.push_back(RowID{chunk_id, i});
@@ -388,7 +385,6 @@ void GdSegmentV1Fixed<T, U>::_all_to_matches(
         }
         else{
             // Add all PF indexes
-            #pragma omp simd
             for(auto i=ChunkOffset{0} ; i<position_filter->size() ; ++i){
                 results.push_back(RowID{chunk_id, i});
             }
@@ -399,7 +395,6 @@ void GdSegmentV1Fixed<T, U>::_all_to_matches(
 
         if(!nulls){
             // Add all row indexes
-            #pragma omp simd
             for(auto rowidx=ChunkOffset{0} ; rowidx < size() ; ++rowidx){
                 results.push_back(RowID{chunk_id, rowidx});
             }
@@ -407,7 +402,6 @@ void GdSegmentV1Fixed<T, U>::_all_to_matches(
         else {
             // There are nulls, filter them out
             const auto null_value_base_idx = null_value_id();
-            #pragma omp simd
             for(auto rowidx=ChunkOffset{0} ; rowidx < reconstruction_list->size() ; ++rowidx){
                 const auto base_idx = reconstruction_list->at(rowidx);
                 if(base_idx != null_value_base_idx){
