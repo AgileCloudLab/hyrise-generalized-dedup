@@ -105,7 +105,7 @@ namespace gdsegment
             results.reserve(indexes.size());
 
             const auto before = high_resolution_clock::now();
-            segment_iterable.with_iterators(pos_filter_ptr, [&](auto segment_it, auto segment_end) {
+            segment_iterable.with_iterators<true>(pos_filter_ptr, [&](auto segment_it, auto segment_end) {
                 while(segment_it != segment_end){
                     // Deref
                     const auto segment_item = *segment_it;
@@ -175,7 +175,7 @@ namespace gdsegment
             results.reserve(orig_data.size());
 
             const auto before = high_resolution_clock::now();
-            segment_iterable.with_iterators([&](auto segment_it, auto segment_end) {
+            segment_iterable.with_iterators<true>([&](auto segment_it, auto segment_end) {
                 // Dereference values 
                 while(segment_it != segment_end){
                     // Deref
@@ -286,7 +286,7 @@ namespace gdsegment
                     value_results.clear();
 
                     before = high_resolution_clock::now();
-                    segment_iterable.with_iterators([&](auto segment_it, auto segment_end) {
+                    segment_iterable.with_iterators<true>([&](auto segment_it, auto segment_end) {
                         // Dereference values 
                         chunk_offset = 0;
                         while(segment_it != segment_end){
