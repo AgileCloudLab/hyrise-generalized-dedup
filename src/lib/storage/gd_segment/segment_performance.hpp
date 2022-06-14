@@ -22,10 +22,10 @@ namespace gdsegment
         unsigned dev_bits;
         float compression_gain;
 
-        unsigned long random_access_time;
-        unsigned long sequential_access_time;
-        unsigned long table_scan_time;
-        unsigned long table_scan_time_valuesegment;
+        unsigned long random_access_time = 0;
+        unsigned long sequential_access_time = 0;
+        unsigned long table_scan_time = 0;
+        unsigned long table_scan_time_valuesegment = 0;
 
         void print() const {
             cout << dev_bits << " bits\t | " << round(compression_gain*100) << "%\t | "<< random_access_time << " ns\t | " << sequential_access_time << " ns\t | " << (table_scan_time/1000) << " µs";
