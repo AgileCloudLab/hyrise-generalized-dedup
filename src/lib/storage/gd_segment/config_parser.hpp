@@ -33,10 +33,10 @@ namespace config_parser
         unsigned max_dev_bits = 0; // 0 = based on the segment data type
 
         // Relative importance of compression rate and speeds of the segment
-        float weight_comprate = 0.25;
-        float weight_random_access = 0.25;
-        float weight_sequential_access = 0.25;
-        float weight_tablescan = 0.25;
+        float weight_comprate = 0.0;
+        float weight_random_access = 0.0;
+        float weight_sequential_access = 0.0;
+        float weight_tablescan = 0.0;
 
         // Length of random access and tablescan tests, in a fraction of the segment size
         float random_access_rows_fraction = 0.1;
