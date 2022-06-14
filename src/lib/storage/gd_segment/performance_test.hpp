@@ -170,7 +170,7 @@ namespace gdsegment
             //auto pos_filter_ptr = std::make_shared<EntireChunkPosList>(ChunkID{0}, ChunkOffset{segment.size()});
 
             vector<std::optional<T>> results;
-            results.reserve(orig_data.size());
+            results.reserve(segment.size());
 
             const auto before = high_resolution_clock::now();
             segment_iterable.with_iterators([&](auto segment_it, auto segment_end) {
@@ -325,10 +325,12 @@ namespace gdsegment
             vector<SegmentPerformance> results;
 
             // Generate random row indexes for all random access tests
-            const auto random_access_indexes = measure_random_access ? helpers::_generate_int_data<uint32_t>( max<size_t>(1, (size_t) data.size() * random_access_fraction), 0, data.size()-1) : vector<uint32_t>();
+            // (Note: segment size = length of null values, not length of 'data')
+            const auto random_access_indexes = measure_random_access ? helpers::_generate_int_data<uint32_t>( max<size_t>(1, (size_t) null_values.size() * random_access_fraction), 0, null_values.size()) : vector<uint32_t>();
 
             // Generate random query values for all TableScans
-            const auto tablescan_query_values = measure_table_scan ? helpers::_generate_int_data<T>(max<size_t>(1, (size_t) data.size() * tablescan_fraction), *std::min_element(data.begin(), data.end()), *std::max_element(data.begin(), data.end())) : vector<T>();
+            // (skip if only NULLs are stored in the segment)
+            const auto tablescan_query_values = (measure_table_scan && data.size()) ? helpers::_generate_int_data<T>(max<size_t>(1, (size_t) null_values.size() * tablescan_fraction), *std::min_element(data.begin(), data.end()), *std::max_element(data.begin(), data.end())) : vector<T>();
             
             // Run the requested tests
             for(unsigned dev_bits=min_dev_bits ; dev_bits <= max_dev_bits ; ++dev_bits) {
