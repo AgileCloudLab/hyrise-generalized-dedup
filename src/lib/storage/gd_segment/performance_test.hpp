@@ -105,7 +105,7 @@ namespace gdsegment
             results.reserve(indexes.size());
 
             const auto before = high_resolution_clock::now();
-            segment_iterable.with_iterators<true>(pos_filter_ptr, [&](auto segment_it, auto segment_end) {
+            segment_iterable.with_iterators(pos_filter_ptr, [&](auto segment_it, auto segment_end) {
                 while(segment_it != segment_end){
                     // Deref
                     const auto segment_item = *segment_it;
@@ -126,18 +126,16 @@ namespace gdsegment
             const auto average_time = round(total_time / (float)indexes.size());
 
             // Verify
+            DebugAssert(results.size() == indexes.size(), "Results: "+std::to_string(results.size())+", random access indexes: "+std::to_string(indexes.size()));
             if(false){
-                DebugAssert(results.size() == indexes.size(), "Results: "+std::to_string(results.size())+", random access indexes: "+std::to_string(indexes.size()));
                 auto results_it = results.begin();
                 for(const auto& idx : indexes){
                     DebugAssert(orig_data[idx] == *results_it, " ERROR GdSegmentV1@"+std::to_string(segment.get_dev_bits())+" Random Access error at index #"+std::to_string(idx) + ". Data: " + std::to_string(orig_data[idx]) + ", result: " + std::to_string(*results_it));
                     results_it++;
                 }
             }
-
             return average_time;
         }
-
         
         template<typename T>
         bool evaluate_predicate(const PredicateCondition& condition, const T& left, const T& right){
@@ -175,7 +173,7 @@ namespace gdsegment
             results.reserve(orig_data.size());
 
             const auto before = high_resolution_clock::now();
-            segment_iterable.with_iterators<true>([&](auto segment_it, auto segment_end) {
+            segment_iterable.with_iterators([&](auto segment_it, auto segment_end) {
                 // Dereference values 
                 while(segment_it != segment_end){
                     // Deref
@@ -286,7 +284,7 @@ namespace gdsegment
                     value_results.clear();
 
                     before = high_resolution_clock::now();
-                    segment_iterable.with_iterators<true>([&](auto segment_it, auto segment_end) {
+                    segment_iterable.with_iterators([&](auto segment_it, auto segment_end) {
                         // Dereference values 
                         chunk_offset = 0;
                         while(segment_it != segment_end){
