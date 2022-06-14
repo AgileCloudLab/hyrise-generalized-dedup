@@ -326,11 +326,16 @@ namespace gdsegment
 
             // Generate random row indexes for all random access tests
             // (Note: segment size = length of null values, not length of 'data')
-            const auto random_access_indexes = measure_random_access ? helpers::_generate_int_data<uint32_t>( max<size_t>(1, (size_t) null_values.size() * random_access_fraction), 0, null_values.size()) : vector<uint32_t>();
+            const auto max_index = null_values.size()-1;
+            const auto num_random_access_indexes = (size_t) null_values.size() * random_access_fraction;
+            const auto random_access_indexes = measure_random_access ? helpers::_generate_int_data<uint32_t>( max<size_t>(1, num_random_access_indexes), 0, max_index) : vector<uint32_t>();
 
             // Generate random query values for all TableScans
             // (skip if only NULLs are stored in the segment)
-            const auto tablescan_query_values = (measure_table_scan && data.size()) ? helpers::_generate_int_data<T>(max<size_t>(1, (size_t) null_values.size() * tablescan_fraction), *std::min_element(data.begin(), data.end()), *std::max_element(data.begin(), data.end())) : vector<T>();
+            const auto ts_min_value = *std::min_element(data.begin(), data.end());
+            const auto ts_max_value = *std::max_element(data.begin(), data.end());
+            const auto num_ts_values = (size_t) null_values.size() * tablescan_fraction;
+            const auto tablescan_query_values = (measure_table_scan && data.size()) ? helpers::_generate_int_data<T>(max<size_t>(1, num_ts_values), ts_min_value, ts_max_value) : vector<T>();
             
             // Run the requested tests
             for(unsigned dev_bits=min_dev_bits ; dev_bits <= max_dev_bits ; ++dev_bits) {
