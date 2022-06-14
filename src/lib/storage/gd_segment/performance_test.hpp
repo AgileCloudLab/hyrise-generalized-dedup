@@ -127,13 +127,13 @@ namespace gdsegment
 
             // Verify
             DebugAssert(results.size() == indexes.size(), "Results: "+std::to_string(results.size())+", random access indexes: "+std::to_string(indexes.size()));
-            if(false){
-                auto results_it = results.begin();
-                for(const auto& idx : indexes){
-                    DebugAssert(orig_data[idx] == *results_it, " ERROR GdSegmentV1@"+std::to_string(segment.get_dev_bits())+" Random Access error at index #"+std::to_string(idx) + ". Data: " + std::to_string(orig_data[idx]) + ", result: " + std::to_string(*results_it));
-                    results_it++;
-                }
+            /* TODO handle NULL values!
+            auto results_it = results.begin();
+            for(const auto& idx : indexes){
+                DebugAssert(orig_data[idx] == *results_it, " ERROR GdSegmentV1@"+std::to_string(segment.get_dev_bits())+" Random Access error at index #"+std::to_string(idx) + ". Data: " + std::to_string(orig_data[idx]) + ", result: " + std::to_string(*results_it));
+                results_it++;
             }
+            */
             return average_time;
         }
         
@@ -195,10 +195,10 @@ namespace gdsegment
             const auto average_time = round(total_time / (float)segment.size());
 
             // Verify
-            if(false){
-                DebugAssert(results.size() == segment.size(), "SeqAccess: Different number of results than segment size! Segment: "+std::to_string(segment.size())+", results: "+std::to_string(results.size()));
-                DebugAssert(std::equal(results.begin(), results.end(), orig_data.begin()), "SeqAccess: Results different than original data");
-            }
+            DebugAssert(results.size() == segment.size(), "SeqAccess: Different number of results than segment size! Segment: "+std::to_string(segment.size())+", results: "+std::to_string(results.size()));
+            /* TODO handle NULL values!
+            DebugAssert(std::equal(results.begin(), results.end(), orig_data.begin()), "SeqAccess: Results different than original data");
+            */
 
             return average_time;
         }
@@ -240,20 +240,20 @@ namespace gdsegment
                     ts_times.push_back(chrono::duration_cast<chrono::nanoseconds>(after - before).count());
 
                     // Verify
-                    if(false) {
-                        correct_results.clear();
-                        correct_results.reserve(orig_data.size());
-                        for(auto i=0U ; i<orig_data.size() ; ++i){
-                            if(evaluate_predicate<T>(condition, orig_data[i], query_value)){
-                                correct_results.push_back(RowID{ChunkID{0}, ChunkOffset{i}});
-                            }
-                        }
-
-                        if(!std::equal(correct_results.begin(), correct_results.end(), results.begin())){
-                            cout << "Wrong TS results at " << predicate_to_string(condition) << " " << query_value << endl;
-                            are_results_incorrect = true;
+                    /* TODO handle NULL values!
+                    correct_results.clear();
+                    correct_results.reserve(orig_data.size());
+                    for(auto i=0U ; i<orig_data.size() ; ++i){
+                        if(evaluate_predicate<T>(condition, orig_data[i], query_value)){
+                            correct_results.push_back(RowID{ChunkID{0}, ChunkOffset{i}});
                         }
                     }
+
+                    if(!std::equal(correct_results.begin(), correct_results.end(), results.begin())){
+                        cout << "Wrong TS results at " << predicate_to_string(condition) << " " << query_value << endl;
+                        are_results_incorrect = true;
+                    }
+                    */
                 }
             } // end tablescans
 
