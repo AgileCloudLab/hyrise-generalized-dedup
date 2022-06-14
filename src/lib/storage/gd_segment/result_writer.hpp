@@ -15,34 +15,56 @@ namespace gdsegment
     using namespace perf_test;
 
 // Write to a single file from multiple threads
-class GdResultWriter
+class GdResultsAccessor
 {   
     protected:
-        GdResultWriter(const std::string file_path): _file_path(file_path)
+        GdResultsAccessor(const std::string file_path): _file_path(file_path)
         {}
-        static GdResultWriter* instance;
+        static GdResultsAccessor* instance;
 
     public:
-        GdResultWriter(GdResultWriter &other) = delete;
-        void operator=(const GdResultWriter &) = delete;
-        static GdResultWriter *getinstance(const std::string& path) {
+        GdResultsAccessor(GdResultsAccessor &other) = delete;
+        void operator=(const GdResultsAccessor &) = delete;
+        static GdResultsAccessor *getinstance(const std::string& path) {
             /**
              * This is a safer way to create an instance. instance = new Singleton is
              * dangeruous in case two instance threads wants to access at the same time
              */
             if(instance==nullptr){
-                instance = new GdResultWriter(path);
+                instance = new GdResultsAccessor(path);
             }
             return instance;
         }
 
-        void write(const string& data) {
-            // Ensure that only one thread can execute at a time
-            std::lock_guard<std::mutex> lock(_writerMutex);
-            auto f = ofstream(_file_path, ios::app);
-            f << data;
-            f.close();
+        // Check if the file exists
+        bool file_exists() const {
+            ifstream f(_file_path);
+            return f.good();
         }
+
+        
+        string get_contents() {
+            
+            ifstream f(_file_path);
+            if(!f.good()){
+                return "";
+            }
+
+            string contents;
+            {
+                std::lock_guard<std::mutex> lock(_access_mutex);
+                string line;
+                while(getline(f, line)){
+                    contents += line + '\n';
+                }
+            }
+
+            // cut off last comma but keep the newline
+            contents.pop_back();
+            contents.pop_back();
+            return contents;
+        }
+
 
         void write_measurements(const vector<SegmentPerformance>& perf_results, const string& table_col_name, const int chunk_index, const size_t rows) {
             // Serialize the measurements
@@ -57,44 +79,20 @@ class GdResultWriter
     
     private:
 
-        std::mutex _writerMutex;
-        std::string _file_path;
-};
-GdResultWriter* GdResultWriter::instance=nullptr;
-
-
-class GdResultReader
-{   
-    public:
-
-        GdResultReader(const string& file_path) : _file_path(file_path) {}
-
-        // Check if the file exists
-        bool file_exists() const {
-            ifstream f(_file_path);
-            return f.good();
+        void write(const string& data) {
+            // Ensure that only one thread can execute at a time
+            std::lock_guard<std::mutex> lock(_access_mutex);
+            auto f = ofstream(_file_path, ios::app);
+            f << data;
+            f.close();
         }
 
-        string get_contents() const {
-            
-            ifstream f(_file_path);
-            if(!f.good()){
-                return "";
-            }
-
-            string contents, line;
-            while(getline(f, line)){
-                contents += line + '\n';
-            }
-            // cut off last comma but keep the newline
-            contents.pop_back();
-            contents.pop_back();
-            return contents;
-        }
-
-    private:
+        std::mutex _access_mutex;
         std::string _file_path;
 };
+GdResultsAccessor* GdResultsAccessor::instance=nullptr;
+
+
 
 class GdResultParser {
     public:
@@ -107,7 +105,7 @@ class GdResultParser {
 
         vector<SegmentPerformance> get_measurements(const std::string& table_col_name, const int chunkidx, const size_t rows){
             vector<SegmentPerformance> res;
-            // See internal structure of the JSON in SegmentPerformance::to_json() and GdResultWriter::write_measurements()
+            // See internal structure of the JSON in SegmentPerformance::to_json() and GdResultsAccessor::write_measurements()
             DebugAssert(parsed_json.is_array(), "Parsed JSON is not an array!");
             for(auto& record : parsed_json) {
                 if(!record.contains("name")){

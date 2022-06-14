@@ -78,10 +78,11 @@ public:
         const string perf_results_filename = "gd_segment_results.json";
         bool json_load_successful = false;
         
+        auto gd_results_file_accessor = GdResultsAccessor::getinstance(perf_results_filename);
+        
         { // Try to load results from a file
-            GdResultReader results_reader(perf_results_filename);
-            if(results_reader.file_exists()){
-                const auto json_string = "[" + results_reader.get_contents() + "]";
+            if(gd_results_file_accessor->file_exists()){
+                const auto json_string = "[" + gd_results_file_accessor->get_contents() + "]";
                 GdResultParser parser(json_string);
                 // query the measurements for this segment (assuming the same measurements had been done)
                 perf_results = parser.get_measurements(table_col_name, chunk_index, values.size());
@@ -115,8 +116,7 @@ public:
         
         if(!json_load_successful) { 
             // Store results to json
-            auto result_writer = GdResultWriter::getinstance(perf_results_filename);
-            result_writer->write_measurements(perf_results, table_col_name, chunk_index, values.size());
+            gd_results_file_accessor->write_measurements(perf_results, table_col_name, chunk_index, values.size());
         }
 
         // Decide which deviation size is the best using the relative importance of attributes from the config
