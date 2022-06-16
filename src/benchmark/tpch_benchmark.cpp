@@ -201,4 +201,61 @@ int main(int argc, char* argv[]) {
   }
 
   benchmark_runner->run();
+
+  {
+      std::cout << "\n\nPRINTING COLUMN SIZES\n";
+      // Print table sizes after the benchmark
+      const auto tables = Hyrise::get().storage_manager.table_names();
+
+      size_t int_columns_total = 0;
+      for(const auto& tablename : tables){
+      // Get table
+      const auto& table = Hyrise::get().storage_manager.get_table(tablename);
+
+      // Allocate and zero-initialize vectors for memory and encoding of each segment per column
+      const auto columns_num = table->column_count();
+      const auto column_names = table->column_names();
+      std::vector<std::vector<size_t>> memory_per_column(columns_num);
+      std::vector<std::string> segment_encodings(columns_num);
+      std::vector<std::string> column_types(columns_num);
+
+      for (ChunkID chunk_id(0); chunk_id < table->chunk_count(); ++chunk_id) {
+        const auto chunk = table->get_chunk(chunk_id);
+
+        for(ColumnID colid(0) ; colid < columns_num ; ++colid){
+          auto segment = chunk->get_segment(colid);
+          // Calculate segment memory use
+          memory_per_column[colid].push_back(segment->memory_usage(MemoryUsageCalculationMode::Full));
+          
+          if(chunk_id == ChunkID{0}) {
+            // Figure out the encoding type of the first chunk (they all should be the same)
+            if(dynamic_cast<BaseDictionarySegment*>(&*segment)){
+              segment_encodings[colid] = "Dictionary";
+            }
+            else if(dynamic_cast<BaseGdSegment*>(&*segment)){
+              segment_encodings[colid] = "GD";
+            }
+            else{
+              segment_encodings[colid] = "Other";
+            }
+
+            std::stringstream ss;
+            ss << table->column_data_type(colid);
+            column_types[colid] = ss.str();
+          }
+        }
+      }
+      
+      // Print the total memory per column
+      std::cout << "Column Name,Total Size,Encoding,Data Type\n";
+      for(size_t col_idx=0 ; col_idx < memory_per_column.size() ; ++col_idx) {
+        const auto total = std::accumulate(memory_per_column[col_idx].begin(), memory_per_column[col_idx].end(), 0);
+        std::cout << tablename+"."+column_names[col_idx] + "," + std::to_string(total) + ","+segment_encodings[col_idx] + "," + column_types[col_idx] +"\n";
+        if(column_types[col_idx] == "int") {
+            int_columns_total += total;
+        }
+      }
+    } // end table
+    std::cout << "\nInt columns total size: " << int_columns_total << " bytes" << std::endl; 
+  }
 }

@@ -221,9 +221,6 @@ int main(int argc, char* argv[]) {
     std::vector<std::string> segment_encodings(columns_num);
     std::vector<std::string> column_types(columns_num);
 
-    
-
-
     for (ChunkID chunk_id(0); chunk_id < table->chunk_count(); ++chunk_id) {
       const auto chunk = table->get_chunk(chunk_id);
 
